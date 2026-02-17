@@ -18,7 +18,9 @@
         "ACCESS_COARSE_LOCATION",
         "ACCESS_FINE_LOCATION",
         "ACCESS_BACKGROUND_LOCATION",
-        "POST_NOTIFICATIONS"
+        "POST_NOTIFICATIONS",
+        "android.permission.RECEIVE_BOOT_COMPLETED",
+        "android.permission.WAKE_LOCK"
       ],
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
@@ -67,6 +69,12 @@
       "eas": {
         "projectId": "40a35c60-d729-4dd2-8681-1204b4a7a356"
       }
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/40a35c60-d729-4dd2-8681-1204b4a7a356"
     }
   }
 }

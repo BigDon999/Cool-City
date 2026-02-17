@@ -11,12 +11,8 @@ export default function NativeMap({ location, riskColor }) {
     );
   }
 
-  // Use Google Maps on Android, Default (Apple Maps) on iOS
-  const provider = Platform.OS === 'android' ? PROVIDER_GOOGLE : PROVIDER_DEFAULT;
-  
   return (
     <MapView
-      provider={provider}
       style={StyleSheet.absoluteFillObject}
       initialRegion={{
         latitude: location.coords.latitude,

@@ -206,14 +206,12 @@ export default function MapScreen() {
                   filter: isDark ? 'invert(90%) hue-rotate(180deg) brightness(95%) contrast(90%)' : 'none'
                }}
              />
-          </View>
-        ) : (
-          <MapView 
+        ) : ( 
+          <MapView
               key="native-map-view"
-              provider={PROVIDER_GOOGLE}
               ref={mapRef}
               style={StyleSheet.absoluteFillObject}
-              region={{ 
+              initialRegion={{ 
                   latitude: location.coords.latitude, 
                   longitude: location.coords.longitude, 
                   latitudeDelta: 0.04, 
