@@ -222,6 +222,7 @@ export default function MapScreen() {
               showsCompass={false}
               showsMyLocationButton={false}
               toolbarEnabled={false}
+              liteMode={Platform.OS === 'android'} // Use lite mode on Android for stability
           >
               {/* Simulated Heat Risk Zones */}
               {location && location.coords && showHeatMap && (
