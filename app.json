@@ -14,6 +14,12 @@
     },
     "android": {
       "package": "com.coolcity.app",
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION",
+        "POST_NOTIFICATIONS"
+      ],
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -41,7 +47,16 @@
           }
         }
       ],
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Allow Cool City to access your location to provide heat risk alerts."
+        }
+      ],
+      "expo-background-fetch",
+      "expo-task-manager",
+      "expo-notifications"
     ],
     "experiments": {
       "typedRoutes": false,

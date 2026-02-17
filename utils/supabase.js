@@ -23,11 +23,14 @@ const ExpoSecureStoreAdapter = {
   },
 };
 
-const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
-const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co';
+const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-key';
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  console.warn("Security Warning: Supabase credentials missing. Check your .env file.");
+if (!process.env.EXPO_PUBLIC_SUPABASE_URL || !process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY) {
+  console.error("🚨🚨🚨 CRITICAL ERROR: SUPABASE ENV VARIABLES MISSING 🚨🚨🚨");
+  console.error("-> CHECK EAS SECRETS: You must run `eas secret:create` for production builds.");
+  console.error("-> CHECK .ENV: Ensure EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY are set.");
+  console.error("App functionality (Auth, Data) will FAIL until fixed.");
 }
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
