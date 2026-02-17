@@ -319,7 +319,7 @@ export default function MapScreen() {
                 onPress={() => setFilter(filter === 'hydration' ? 'all' : 'hydration')}
              >
                 <MaterialIcons name="water-drop" size={16} color={filter === 'hydration' ? "#fff" : '#3b82f6'} />
-                <Text style={[styles.filterText, { color: filter === 'hydration' ? '#fff' : textColor }]}>Hydration</Text>
+                <Text style={[styles.filterText, { color: filter === 'hydration' ? '#fff' : textColor }]}>Hydration</Text> 
              </TouchableOpacity>
           </View>
         </View>
@@ -452,7 +452,7 @@ const styles = StyleSheet.create({
       borderRadius: 20,
       borderWidth: 2,
       borderColor: '#fff',
-      boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+      // boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
       elevation: 5,
   },
   topUI: {
@@ -469,7 +469,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     overflow: 'hidden',
     borderWidth: 1.5,
-    boxShadow: '0 8px 32px rgba(0,0,0,0.15)',
+    // boxShadow: '0 8px 32px rgba(0,0,0,0.15)',
     elevation: 8,
     marginBottom: 16,
   },
@@ -500,7 +500,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     gap: 6,
     borderWidth: 1,
-    boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
+    // boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
     elevation: 2,
   },
   inactiveFilter: {
@@ -522,7 +522,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: 'rgba(46, 204, 112, 0.1)',
-    boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+    // boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
     elevation: 4,
   },
   fabButton: {
@@ -540,7 +540,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   fabPrimary: {
-    boxShadow: '0 4px 8px rgba(0,0,0,0.2)',
+    // boxShadow: '0 4px 8px rgba(0,0,0,0.2)',
     elevation: 6,
   },
   legendContainer: {
@@ -556,7 +556,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(46, 204, 112, 0.1)',
     width: 180,
-    boxShadow: '0 4px 10px rgba(0,0,0,0.1)',
+    // boxShadow: '0 4px 10px rgba(0,0,0,0.1)',
     elevation: 4,
   },
   legendTitle: {
