@@ -78,6 +78,7 @@ export default function MapScreen() {
 
   // Derived filtered markers
   const filteredMarkers = useMemo(() => {
+      if (!Array.isArray(markers)) return [];
       if (filter === 'all') return markers;
       return markers.filter(m => m.type === filter || (filter === 'cooling' && m.type === 'park')); 
   }, [markers, filter]);
@@ -222,7 +223,7 @@ export default function MapScreen() {
               showsCompass={false}
               showsMyLocationButton={false}
               toolbarEnabled={false}
-              liteMode={Platform.OS === 'android'} // Use lite mode on Android for stability
+              // liteMode={Platform.OS === 'android'} // Removed for full interactivity
           >
               {/* Simulated Heat Risk Zones */}
               {location && location.coords && showHeatMap && (
@@ -449,7 +450,6 @@ const styles = StyleSheet.create({
   markerContainer: {
       padding: 8,
       borderRadius: 20,
-      borderWidth: 2,
       borderWidth: 2,
       borderColor: '#fff',
       boxShadow: '0 2px 4px rgba(0,0,0,0.2)',

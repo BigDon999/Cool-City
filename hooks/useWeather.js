@@ -252,93 +252,112 @@ export const WeatherProvider = ({ children }) => {
   const updateLocation = async (lat, lon) => {
       console.log("useWeather: updateLocation triggered with", lat, lon);
       setLoading(true);
-      // Mock location object structure
-      const newLoc = { coords: { latitude: lat, longitude: lon } };
-      setLocation(newLoc);
-      
-      // Reverse Geocode
       try {
-        let reverseGeocode = await Location.reverseGeocodeAsync({ latitude: lat, longitude: lon });
-        if (reverseGeocode.length > 0) {
-            const city = reverseGeocode[0].city || reverseGeocode[0].region;
-            console.log("useWeather: locationName resolved to:", city);
-            setLocationName(city);
-            setCity(city);
-        } else {
-            setLocationName(`Lat: ${lat.toFixed(2)}, Lon: ${lon.toFixed(2)}`);
-        }
-      } catch (e) {
-        console.log("Reverse Geocode Error:", e);
-        setLocationName("New Location");
-      }
-
-      await fetchWeatherData(lat, lon);
-      
-      // Update Centers for new location
-      const generateCenters = (lat, lon) => {
-          const centers = [];
-          const types = ['cooling', 'hydration', 'park'];
-          const names = {
-              cooling: ["Community Center", "Cooling Oasis", "City Library", "Public Shelter", "Social Club"],
-              hydration: ["Public Fountain", "Water Station", "Hydration Hub", "Refill Point", "Cool Sprinkler"],
-              park: ["City Park", "Green Garden", "Botanical Zone", "Shaded Square", "Metro Plaza"]
-          };
-          
-          for (let i = 0; i < 12; i++) {
-              const type = types[i % 3];
-              centers.push({
-                  id: `center-${i}-${type}`,
-                  title: names[type][Math.floor(Math.random() * names[type].length)] + ` ${i + 1}`,
-                  description: type === 'hydration' ? "Free chilled water" : (type === 'cooling' ? "Open 9AM - 9PM" : "Shaded green area"),
-                  coordinate: {
-                      latitude: lat + (Math.random() - 0.5) * 0.08,
-                      longitude: lon + (Math.random() - 0.5) * 0.08,
-                  },
-                  type: type,
-                  status: i % 4 === 0 ? "Full" : "Active"
-              });
+        // Mock location object structure
+        const newLoc = { coords: { latitude: lat, longitude: lon } };
+        setLocation(newLoc);
+        
+        // Reverse Geocode
+        try {
+          let reverseGeocode = await Location.reverseGeocodeAsync({ latitude: lat, longitude: lon });
+          if (reverseGeocode.length > 0) {
+              const city = reverseGeocode[0].city || reverseGeocode[0].region;
+              console.log("useWeather: locationName resolved to:", city);
+              setLocationName(city);
+              setCity(city);
+          } else {
+              setLocationName(`Lat: ${lat.toFixed(2)}, Lon: ${lon.toFixed(2)}`);
           }
-          return centers;
-      };
-      setCentersData(generateCenters(lat, lon));
-      
-      setLoading(false);
+        } catch (e) {
+          console.log("Reverse Geocode Error:", e);
+          setLocationName("New Location");
+        }
+
+        await fetchWeatherData(lat, lon);
+        
+        // Update Centers for new location
+        if (typeof generateCenters === 'function') {
+             setCentersData(generateCenters(lat, lon));
+        } else {
+             // Fallback if generateCenters isn't defined in scope (it was defined inside updateLocation in previous code?)
+             // It seems it was defined locally. I need to keep the local definition or move it out.
+             // Re-defining it here to be safe and consistent.
+             const centers = [];
+             const types = ['cooling', 'hydration', 'park'];
+             const names = {
+                cooling: ["Community Center", "Cooling Oasis", "City Library", "Public Shelter", "Social Club"],
+                hydration: ["Public Fountain", "Water Station", "Hydration Hub", "Refill Point", "Cool Sprinkler"],
+                park: ["City Park", "Green Garden", "Botanical Zone", "Shaded Square", "Metro Plaza"]
+            };
+            
+            for (let i = 0; i < 12; i++) {
+                const type = types[i % 3];
+                centers.push({
+                    id: `center-${i}-${type}`,
+                    title: names[type][Math.floor(Math.random() * names[type].length)] + ` ${i + 1}`,
+                    description: type === 'hydration' ? "Free chilled water" : (type === 'cooling' ? "Open 9AM - 9PM" : "Shaded green area"),
+                    coordinate: {
+                        latitude: lat + (Math.random() - 0.5) * 0.08,
+                        longitude: lon + (Math.random() - 0.5) * 0.08,
+                    },
+                    type: type,
+                    status: i % 4 === 0 ? "Full" : "Active"
+                });
+            }
+            setCentersData(centers);
+        }
+      } catch (error) {
+          console.log("updateLocation Error:", error);
+      } finally {
+          setLoading(false);
+      }
   };
 
   const refresh = useCallback(async () => {
     console.log("useWeather: refresh triggered");
     setLoading(true);
-    let { status } = await Location.requestForegroundPermissionsAsync();
-    console.log("useWeather: permission status:", status);
-    if (status !== 'granted') {
-      alert("Permission to access location was denied");
-      setLoading(false);
-      return;
-    }
-    
-    let location = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.Balanced,
-        timeout: 5000
-    });
-    setLocation(location);
-    
-    let reverseGeocode = await Location.reverseGeocodeAsync(location.coords);
-    if (reverseGeocode.length > 0) {
-       const city = reverseGeocode[0].city || reverseGeocode[0].region;
-       setLocationName(city);
-       setCity(city);
-       
-       await SecureStore.setItemAsync('lastLocation', JSON.stringify({
-         lat: location.coords.latitude,
-         lon: location.coords.longitude,
-         city: city
-       }));
-    }
+    try {
+        let { status } = await Location.requestForegroundPermissionsAsync();
+        console.log("useWeather: permission status:", status);
+        if (status !== 'granted') {
+        //   alert("Permission to access location was denied");
+          // Don't alert, just log and return. Alerting loops are annoying.
+          console.log("Permission denied");
+          setLoading(false);
+          return;
+        }
+        
+        let location = await Location.getCurrentPositionAsync({
+            accuracy: Location.Accuracy.Balanced,
+            timeout: 5000
+        });
+        
+        if (!location || !location.coords) {
+            throw new Error("Could not retrieve location");
+        }
 
-    await fetchWeatherData(location.coords.latitude, location.coords.longitude);
-    
-    // Generate Mock Centers around location
-    const generateCenters = (lat, lon) => {
+        setLocation(location);
+        
+        try {
+            let reverseGeocode = await Location.reverseGeocodeAsync(location.coords);
+            if (reverseGeocode.length > 0) {
+            const city = reverseGeocode[0].city || reverseGeocode[0].region;
+            setLocationName(city);
+            setCity(city);
+            
+            await SecureStore.setItemAsync('lastLocation', JSON.stringify({
+                lat: location.coords.latitude,
+                lon: location.coords.longitude,
+                city: city
+            }));
+            }
+        } catch (e) {
+            console.log("Geocode error:", e);
+        }
+
+        await fetchWeatherData(location.coords.latitude, location.coords.longitude);
+        
+        // Generate Mock Centers
         const centers = [];
         const types = ['cooling', 'hydration', 'park'];
         const names = {
@@ -354,18 +373,19 @@ export const WeatherProvider = ({ children }) => {
                 title: names[type][Math.floor(Math.random() * names[type].length)] + ` ${i + 1}`,
                 description: type === 'hydration' ? "Free chilled water" : (type === 'cooling' ? "Open 9AM - 9PM" : "Shaded green area"),
                 coordinate: {
-                    latitude: lat + (Math.random() - 0.5) * 0.08,
-                    longitude: lon + (Math.random() - 0.5) * 0.08,
+                    latitude: location.coords.latitude + (Math.random() - 0.5) * 0.08,
+                    longitude: location.coords.longitude + (Math.random() - 0.5) * 0.08,
                 },
                 type: type,
                 status: i % 4 === 0 ? "Full" : "Active"
             });
         }
-        return centers;
-    };
-    setCentersData(generateCenters(location.coords.latitude, location.coords.longitude));
-    
-    setLoading(false);
+        setCentersData(centers);
+    } catch (error) {
+        console.log("Refresh Error:", error);
+    } finally {
+        setLoading(false);
+    }
   }, []);
 
   // Safe Supabase Fetching

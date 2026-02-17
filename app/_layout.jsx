@@ -9,6 +9,8 @@ import 'react-native-reanimated';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { WeatherProvider } from '@/hooks/useWeather';
 import { AuthProvider } from '@/context/AuthContext';
+import ErrorBoundary from '@/components/ErrorBoundary';
+
 export const unstable_settings = {
   anchor: '(tabs)'
 };
@@ -79,16 +81,18 @@ export default function RootLayout() {
     configureBackground();
   }, []);
   return (
-    <AuthProvider>
-      <WeatherProvider>
-        <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-          <Stack>
-            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-            <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
-          </Stack>
-          <StatusBar style="auto" />
-        </ThemeProvider>
-      </WeatherProvider>
-    </AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
+        <WeatherProvider>
+          <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+            <Stack>
+              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+              <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
+            </Stack>
+            <StatusBar style="auto" />
+          </ThemeProvider>
+        </WeatherProvider>
+      </AuthProvider>
+    </ErrorBoundary>
   );
 }
