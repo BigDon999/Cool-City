@@ -7,10 +7,11 @@ import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 
 export default function AuthScreen() {
-  const { signIn, signUp, loading } = useAuth();
+  const { signIn, signUp, resetPassword, loading } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLogin, setIsLogin] = useState(true);
+  const [isResetMode, setIsResetMode] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [attempts, setAttempts] = useState(0);
   const [lockedUntil, setLockedUntil] = useState(null);
@@ -27,6 +28,28 @@ export default function AuthScreen() {
   const handleAuth = async () => {
     if (checkLockout()) return;
     
+    if (isResetMode) {
+      if (!email) {
+        Alert.alert("Error", "Please enter your email");
+        return;
+      }
+      setIsSubmitting(true);
+      try {
+        const { error } = await resetPassword(email);
+        if (error) {
+          Alert.alert("Error", error.message);
+        } else {
+          Alert.alert("Success", "Reset link sent! Check your inbox.");
+          setIsResetMode(false);
+        }
+      } catch (err) {
+        Alert.alert("Error", "Unexpected failure.");
+      } finally {
+        setIsSubmitting(false);
+      }
+      return;
+    }
+
     if (!email || !password) {
       Alert.alert("Error", "Please fill in all fields");
       return;
@@ -69,6 +92,16 @@ export default function AuthScreen() {
     }
   };
 
+  const getTitle = () => {
+    if (isResetMode) return "Reset Access";
+    return isLogin ? "Secure Entry" : "Guardian Profile";
+  };
+
+  const getSubtitle = () => {
+    if (isResetMode) return "Enter your email to receive recovery instructions";
+    return isLogin ? "End-to-end encrypted intelligence access" : "Secure your city metrics with hardware-backed auth";
+  };
+
   return (
     <View style={styles.container}>
       <LinearGradient colors={['#020617', '#0f172a']} style={StyleSheet.absoluteFill} />
@@ -79,10 +112,8 @@ export default function AuthScreen() {
           <Text style={styles.securityText}>AES-256 ENCRYPTED SESSION</Text>
         </View>
 
-        <Text style={styles.title}>{isLogin ? "Secure Entry" : "Guardian Profile"}</Text>
-        <Text style={styles.subtitle}>
-          {isLogin ? "End-to-end encrypted intelligence access" : "Secure your city metrics with hardware-backed auth"}
-        </Text>
+        <Text style={styles.title}>{getTitle()}</Text>
+        <Text style={styles.subtitle}>{getSubtitle()}</Text>
 
         <View style={styles.inputContainer}>
           <Text style={styles.label}>Email</Text>
@@ -97,17 +128,26 @@ export default function AuthScreen() {
           />
         </View>
 
-        <View style={styles.inputContainer}>
-          <Text style={styles.label}>Password</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="••••••••"
-            placeholderTextColor="#64748b"
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-          />
-        </View>
+        {!isResetMode && (
+          <View style={styles.inputContainer}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+              <Text style={styles.label}>Password</Text>
+              {isLogin && (
+                <TouchableOpacity onPress={() => setIsResetMode(true)}>
+                  <Text style={[styles.label, { color: theme.primary, textTransform: 'none' }]}>Forgot?</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+            <TextInput
+              style={styles.input}
+              placeholder="••••••••"
+              placeholderTextColor="#64748b"
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry
+            />
+          </View>
+        )}
 
         <TouchableOpacity 
           style={styles.button}
@@ -117,16 +157,24 @@ export default function AuthScreen() {
           {isSubmitting ? (
              <ActivityIndicator color="#fff" />
           ) : (
-             <Text style={styles.buttonText}>{isLogin ? "Sign In" : "Sign Up"}</Text>
+             <Text style={styles.buttonText}>
+               {isResetMode ? "Send Reset Link" : (isLogin ? "Sign In" : "Sign Up")}
+             </Text>
           )}
         </TouchableOpacity>
 
         <TouchableOpacity 
           style={styles.switchButton}
-          onPress={() => setIsLogin(!isLogin)}
+          onPress={() => {
+            if (isResetMode) {
+              setIsResetMode(false);
+            } else {
+              setIsLogin(!isLogin);
+            }
+          }}
         >
           <Text style={styles.switchText}>
-            {isLogin ? "Don't have an account? Sign Up" : "Already have an account? Sign In"}
+            {isResetMode ? "Back to Login" : (isLogin ? "Don't have an account? Sign Up" : "Already have an account? Sign In")}
           </Text>
         </TouchableOpacity>
       </View>

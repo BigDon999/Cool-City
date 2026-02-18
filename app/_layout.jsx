@@ -1,8 +1,7 @@
 import { useEffect } from 'react';
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import Constants, { ExecutionEnvironment } from 'expo-constants';
-// import * as Notifications from 'expo-notifications';
-// import { registerBackgroundFetchAsync } from '../services/backgroundWeather';
+import * as Notifications from 'expo-notifications';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import 'react-native-reanimated';
@@ -11,75 +10,107 @@ import { WeatherProvider } from '@/hooks/useWeather';
 import { AuthProvider } from '@/context/AuthContext';
 import ErrorBoundary from '@/components/ErrorBoundary';
 
+// 1. Configure Notification Handler (Required for foreground notifications)
+// Guarded for Expo Go SDK 53+
+if (Constants.executionEnvironment !== ExecutionEnvironment.StoreClient) {
+  try {
+    Notifications.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldShowAlert: true,
+        shouldPlaySound: true,
+        shouldSetBadge: false,
+      }),
+    });
+  } catch (e) {
+    console.warn("Notification Handler Setup failed:", e.message);
+  }
+}
+
 export const unstable_settings = {
   anchor: '(tabs)'
 };
+
+/**
+ * GLOBAL NOTIFICATION SETUP
+ * This function is exported so it can be manually called from a Settings screen
+ * rather than automatically on mount, adhering to Android 13/14 best practices.
+ */
+export async function requestNotificationPermission() {
+  // 0. Guard for Expo Go (Remote push is removed in SDK 53)
+  if (Constants.executionEnvironment === ExecutionEnvironment.StoreClient) {
+    console.log("Notification: Remote Push omitted in Expo Go.");
+    return false;
+  }
+
+  try {
+    const { status: existingStatus } = await Notifications.getPermissionsAsync();
+    let finalStatus = existingStatus;
+    
+    if (existingStatus !== 'granted') {
+      const { status } = await Notifications.requestPermissionsAsync();
+      finalStatus = status;
+    }
+    
+    if (finalStatus !== 'granted') {
+      console.log("Notification: Permission not granted.");
+      return false;
+    }
+    
+    console.log("Notification: Permission granted.");
+    return true;
+  } catch (error) {
+    console.error("Notification Setup Error:", error);
+    return false;
+  }
+}
+
 export default function RootLayout() {
   const colorScheme = useColorScheme();
 
   useEffect(() => {
-    async function configureBackground() {
-      // 1. Skip logic in Expo Go (StoreClient)
-      if (Constants.executionEnvironment === ExecutionEnvironment.StoreClient) {
-        console.log("Background Task: Disabled in Expo Go (Requires Development Build)");
-        return;
-      }
-
-      try {
-        // 2. Dynamic Imports to avoid crashes
-        const Notifications = await import('expo-notifications');
-        const Location = await import('expo-location');
-        const { registerBackgroundFetchAsync } = await import('../services/backgroundWeather');
-
-        // 3. Request Notifications Permission (Safe)
-        try {
-          const { status: notifStatus } = await Notifications.requestPermissionsAsync();
-          if (notifStatus !== 'granted') {
-              console.log("Notification permission denied");
-          }
-        } catch (e) {
-          console.log("Notification Permission Error:", e);
-        }
-
-        // Listener for Notification Tapping
-        const responseListener = Notifications.addNotificationResponseReceivedListener(response => {
-          console.log("Notification Tapped:", response);
-          // Future: Navigate to specific screen based on data
-        });
-
-        // 4. Request Foreground Location Permission FIRST
-        let { status: foreStatus } = await Location.requestForegroundPermissionsAsync();
-        if (foreStatus !== 'granted') {
-           console.log("Foreground Location permission denied - Skipping Background Task");
-           return;
-        }
-
-        // 5. Request Background Location Permission (Only if Foreground Granted)
-        // Note: On Android 11+, this must be a separate request or user flow.
-        try {
-           const { status: backStatus } = await Location.requestBackgroundPermissionsAsync();
-           if (backStatus !== 'granted') {
-             console.log("Background Location denied - Task will rely on last known location or periodic fetch");
-           }
-        } catch (e) {
-           console.log("Background Location Request Error (Optional):", e);
-        }
-
-        // 6. Register Task Safely
-        await registerBackgroundFetchAsync();
-        console.log("Background Weather Task Registered Successfully");
-        
-        return () => {
-          if (responseListener) Notifications.removeNotificationSubscription(responseListener);
-        };
-
-      } catch (err) {
-        console.log("Global Background Configuration Error:", err);
-      }
+    // 2. Setup Notification Listeners (Passive)
+    // Guarded for Expo Go SDK 53+
+    if (Constants.executionEnvironment === ExecutionEnvironment.StoreClient) {
+       return;
     }
 
-    configureBackground();
+    let isMounted = true;
+    let responseListener;
+    let notificationListener;
+
+    const setupListeners = async () => {
+      try {
+        responseListener = Notifications.addNotificationResponseReceivedListener(response => {
+          try {
+            if (!isMounted) return;
+            if (response && response.notification) {
+                console.log("Notification Tapped:", response.notification.request.content.title);
+            }
+          } catch (e) { console.error("Notification Response Inner Error:", e); }
+        });
+
+        notificationListener = Notifications.addNotificationReceivedListener(notification => {
+            if (!isMounted) return;
+            console.log("Notification Received while app open");
+        });
+      } catch (e) {
+         console.warn("Notification Listeners failed to attach:", e.message);
+      }
+    };
+
+    setupListeners();
+
+    return () => {
+      isMounted = false;
+      if (responseListener) {
+          try { Notifications.removeNotificationSubscription(responseListener); } catch (e) {}
+      }
+      if (notificationListener) {
+          try { Notifications.removeNotificationSubscription(notificationListener); } catch (e) {}
+      }
+    };
   }, []);
+
   return (
     <ErrorBoundary>
       <AuthProvider>

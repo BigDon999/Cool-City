@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { StyleSheet, Text, View, ScrollView, TouchableOpacity, Image, Platform, StatusBar, RefreshControl } from 'react-native';
+import { StyleSheet, Text, View, ScrollView, TouchableOpacity, Image, Platform, StatusBar, RefreshControl, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -16,18 +16,34 @@ export default function AdviceScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [showAlert, setShowAlert] = useState(false);
 
+  const isMounted = React.useRef(true);
+
   useEffect(() => {
-    if (risk === "EXTREME") {
+    isMounted.current = true;
+    return () => { isMounted.current = false; };
+  }, []);
+
+  useEffect(() => {
+    if (risk === "EXTREME" && isMounted.current) {
       setShowAlert(true);
     }
   }, [risk]);
 
   const onRefresh = useCallback(() => {
-    setRefreshing(true);
-    refresh().finally(() => {
-      // Simulate network delay for better UX
-      setTimeout(() => setRefreshing(false), 500);
-    });
+    if (isMounted.current) setRefreshing(true);
+    try {
+        refresh().finally(() => {
+            if (isMounted.current) {
+                // Simulate network delay for better UX
+                setTimeout(() => {
+                    if (isMounted.current) setRefreshing(false);
+                }, 500);
+            }
+        });
+    } catch (e) {
+        console.error("AdviceScreen: Refresh Error", e);
+        if (isMounted.current) setRefreshing(false);
+    }
   }, [refresh]);
 
   const backgroundColor = isDark ? theme.backgroundDark : theme.backgroundLight;
@@ -102,7 +118,7 @@ export default function AdviceScreen() {
           }
         >
           <View style={styles.cardsContainer}>
-            {tips.map((tip, index) => (
+            {tips && Array.isArray(tips) && tips.map((tip, index) => (
               <View key={index} style={[styles.card, { backgroundColor: cardBg, borderColor: theme.primary + '1A' }]}>
                 <View style={[styles.iconContainer, { backgroundColor: theme.primary + '1A' }]}>
                   <MaterialIcons name={tip.icon} size={24} color={theme.primary} />
@@ -152,7 +168,7 @@ export default function AdviceScreen() {
            <View style={[styles.footerContent, {backgroundColor: isDark ? theme.backgroundDark : theme.backgroundLight}]}>
                 <TouchableOpacity 
                   style={[styles.actionButton, { backgroundColor: riskColor }]}
-                  onPress={() => alert("Routing functionality coming soon!")}
+                  onPress={() => Alert.alert("Coming Soon", "Routing functionality coming soon!")}
                 >
                     <MaterialIcons name="alt-route" size={20} color="#fff" style={{ marginRight: 8 }} />
                     <Text style={styles.actionButtonText}>See Cool Routes</Text>

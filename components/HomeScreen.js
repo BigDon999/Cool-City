@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, ScrollView, TouchableOpacity, StatusBar, Platform, RefreshControl, Image } from 'react-native';
+import { StyleSheet, Text, View, ScrollView, TouchableOpacity, StatusBar, Platform, RefreshControl, Image, Alert } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useColorScheme } from '@/hooks/use-color-scheme';
@@ -114,8 +114,9 @@ export default function HomeScreenDisplay() {
             <View style={styles.riskBadgeContainer}>
                 <View style={[styles.riskBadge, { 
                     backgroundColor: risk === "SAFE" ? colors.primary : 
-                                   (risk === "CAUTION" ? colors.caution : 
-                                   (risk === "EXTREME" ? colors.extreme : colors.danger)) 
+                                   (risk === "MODERATE" ? colors.caution :
+                                   (risk === "CAUTION" ? "#f39c12" :
+                                   (risk === "EXTREME" ? colors.extreme : colors.danger))) 
                 }]}>
                     <Text style={styles.riskBadgeText}>{risk}</Text>
                 </View>
@@ -139,6 +140,28 @@ export default function HomeScreenDisplay() {
                     <MaterialIcons name="water-drop" size={24} color="#3b82f6" />
                 </View>
             </View>
+        </View>
+
+        {/* Protocols & Advice List (Horizontal Scroll) */}
+        <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>Active Mitigation Protocols</Text>
+            </View>
+            <ScrollView 
+                horizontal 
+                showsHorizontalScrollIndicator={false} 
+                contentContainerStyle={styles.adviceScroll}
+            >
+                {advice.map((item, i) => (
+                    <View key={i} style={[styles.adviceCard, { backgroundColor: cardBg, borderColor: isDark ? 'rgba(255,255,255,0.1)' : '#e2e8f0' }]}>
+                        <View style={[styles.adviceIcon, { backgroundColor: isDark ? 'rgba(46, 204, 112, 0.1)' : '#f0fdf4' }]}>
+                            <MaterialIcons name={item.icon || "info"} size={20} color={colors.primary} />
+                        </View>
+                        <Text style={[styles.adviceTitle, { color: textColor }]}>{item.title}</Text>
+                        <Text style={styles.adviceText}>{item.text}</Text>
+                    </View>
+                ))}
+            </ScrollView>
         </View>
 
         {/* City-Wide Intelligence */}
@@ -235,7 +258,7 @@ export default function HomeScreenDisplay() {
         {/* Action Button */}
         <TouchableOpacity 
             style={styles.locatorButton}
-            onPress={() => alert("Navigating to Map...")} 
+            onPress={() => Alert.alert("Navigation", "Navigating to Map...")} 
         >
             <MaterialIcons name="ac-unit" size={20} color="#fff" style={{marginRight: 8}} />
             <Text style={styles.locatorButtonText}>Locate Active Cooling Center</Text>
@@ -697,5 +720,34 @@ const styles = StyleSheet.create({
       fontWeight: 'bold',
       textTransform: 'uppercase',
       letterSpacing: 1,
+  },
+  adviceScroll: {
+      gap: 12,
+      paddingRight: 24, // Extra padding at end
+  },
+  adviceCard: {
+      width: 220,
+      padding: 16,
+      borderRadius: 16,
+      borderWidth: 1,
+  },
+  adviceIcon: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginBottom: 12,
+  },
+  adviceTitle: {
+      fontSize: 14,
+      fontWeight: 'bold',
+      marginBottom: 4,
+  },
+  adviceText: {
+      fontSize: 12,
+      color: '#94a3b8',
+      lineHeight: 18,
+      fontWeight: '500',
   },
 });

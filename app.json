@@ -7,7 +7,7 @@
     "icon": "./assets/images/icon.png",
     "scheme": "coolcity",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
+    "newArchEnabled": false,
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.coolcity.app"
@@ -22,6 +22,11 @@
         "android.permission.RECEIVE_BOOT_COMPLETED",
         "android.permission.WAKE_LOCK"
       ],
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyAhzgqunimNMAhyPReeTx63qNaJLSArrG0"
+        }
+      },
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",

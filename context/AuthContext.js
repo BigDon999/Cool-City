@@ -58,6 +58,9 @@ export const AuthProvider = ({ children }) => {
       }
     }),
     signOut: () => supabase.auth.signOut(),
+    resetPassword: (email) => supabase.auth.resetPasswordForEmail(email, { 
+      redirectTo: 'coolcity://reset-password' 
+    }),
   };
 
   if (loading) return null;
