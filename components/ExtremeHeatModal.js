@@ -1,11 +1,37 @@
 import React from 'react';
 import { Modal, View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 
-export default function ExtremeHeatModal({ visible, onClose, heatIndex, advice }) {
+export default function ExtremeHeatModal({ visible, onClose, heatIndex, advice, risk }) {
+  // Determine background color and title based on risk
+  let bgColor = "#8e44ad"; // Default extreme
+  let title = "HEAT ALERT";
+
+  switch (risk) {
+    case 'EXTREME':
+      bgColor = "#8e44ad";
+      title = "EXTREME HEAT WARNING";
+      break;
+    case 'DANGER':
+      bgColor = "#ef4444";
+      title = "DANGER: HIGH HEAT";
+      break;
+    case 'CAUTION':
+      bgColor = "#f39c12";
+      title = "HEAT CAUTION";
+      break;
+    case 'MODERATE':
+      bgColor = "#f1c40f";
+      title = "MODERATE HEAT ADVISORY";
+      break;
+    default:
+      bgColor = "#2ecc71";
+      title = "HEAT ADVISORY";
+  }
+
   return (
     <Modal visible={visible} animationType="slide" transparent={false}>
-      <View style={styles.alertContainer}>
-        <Text style={styles.alertTitle}>EXTREME HEAT WARNING</Text>
+      <View style={[styles.alertContainer, { backgroundColor: bgColor }]}>
+        <Text style={styles.alertTitle}>{title}</Text>
         <Text style={styles.alertHeat}>{heatIndex}°</Text>
         <View style={styles.adviceList}>
              {Array.isArray(advice) ? advice.map((item, i) => (
@@ -36,7 +62,6 @@ export default function ExtremeHeatModal({ visible, onClose, heatIndex, advice }
 const styles = StyleSheet.create({
   alertContainer: {
     flex: 1,
-    backgroundColor: "#8e44ad",
     justifyContent: "center",
     alignItems: "center",
     padding: 20,

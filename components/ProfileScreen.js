@@ -2,11 +2,11 @@ import React, { useState } from 'react';
 import { StyleSheet, Text, View, Image, TouchableOpacity, Switch, ScrollView, StatusBar, Platform } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useColorScheme } from '../hooks/use-color-scheme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useWeather } from '@/hooks/useWeather';
+import { useWeather } from '../hooks/useWeather';
 import * as SecureStore from 'expo-secure-store';
-import { theme } from '@/constants/theme';
+import { theme } from '../constants/theme';
 
 export default function ProfileScreen() {
   const colorScheme = useColorScheme();

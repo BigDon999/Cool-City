@@ -1,8 +1,8 @@
 import React, { useEffect } from 'react';
 import { StyleSheet, View, Text, Platform } from 'react-native';
-import { theme } from '@/constants/theme';
+import { theme } from '../constants/theme';
 import { MaterialIcons } from '@expo/vector-icons';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useColorScheme } from '../hooks/use-color-scheme';
 import { LinearGradient } from 'expo-linear-gradient';
 
 export default function WelcomeScreen() {

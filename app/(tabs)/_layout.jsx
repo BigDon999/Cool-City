@@ -1,16 +1,16 @@
 import React from 'react';
 import { Tabs } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useColorScheme } from '../../hooks/use-color-scheme';
 import { BlurView } from 'expo-blur';
 import { StyleSheet, ActivityIndicator, View } from 'react-native';
-import { useAuth } from '@/context/AuthContext';
-import AuthScreen from '@/components/AuthScreen';
-import VerifyEmailScreen from '@/components/VerifyEmailScreen';
-import { theme as globalTheme } from '@/constants/theme';
+import { useAuth } from '../../context/AuthContext';
+import AuthScreen from '../../components/AuthScreen';
+import VerifyEmailScreen from '../../components/VerifyEmailScreen';
+import { theme as globalTheme } from '../../constants/theme';
 
 export default function TabLayout() {
-  const { session, isVerified, loading } = useAuth();
+  const { session, isVerified, loading, authLoading } = useAuth();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
 
@@ -39,8 +39,8 @@ export default function TabLayout() {
     borderDark: '#1e293b',
   };
 
-  const backgroundColor = isDark ? theme.bgDark : theme.bgLight;
-  const borderColor = isDark ? theme.borderDark : theme.borderLight;
+  const backgroundColor = isDark ? globalTheme.backgroundDark : '#ffffff';
+  const borderColor = isDark ? 'rgba(255,255,255,0.06)' : '#f1f5f9';
 
   return (
     <Tabs
@@ -53,24 +53,13 @@ export default function TabLayout() {
           bottom: 0,
           left: 0,
           right: 0,
-          elevation: 0,
-          height: 80, // h-20
-          backgroundColor: 'transparent',
-          borderTopWidth: 0,
+          elevation: 8,
+          height: 85,
+          backgroundColor: backgroundColor,
+          borderTopWidth: 1,
+          borderTopColor: borderColor,
+          paddingBottom: 25,
         },
-        tabBarBackground: () => (
-          <BlurView
-            intensity={20}
-            style={[
-              StyleSheet.absoluteFill,
-              { 
-                backgroundColor: backgroundColor,
-                borderTopWidth: 1,
-                borderTopColor: borderColor,
-              },
-            ]}
-          />
-        ),
         tabBarShowLabel: true,
         tabBarLabelStyle: {
           fontSize: 10,

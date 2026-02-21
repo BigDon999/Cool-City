@@ -14,6 +14,7 @@ export default function NativeMap({ location, riskColor }) {
   return (
     <MapView
       style={StyleSheet.absoluteFillObject}
+      provider={PROVIDER_GOOGLE}
       initialRegion={{
         latitude: location.coords.latitude,
         longitude: location.coords.longitude,
@@ -30,7 +31,6 @@ export default function NativeMap({ location, riskColor }) {
       zoomEnabled={false}
       pitchEnabled={false}
       rotateEnabled={false}
-      liteMode={true} // Valid for Android - renders static bitmap for lists/cards
     >
       <Marker coordinate={location.coords} pinColor={riskColor} />
     </MapView>

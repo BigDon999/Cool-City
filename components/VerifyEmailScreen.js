@@ -1,35 +1,34 @@
-import React, { useState } from 'react';
-import { StyleSheet, View, Text, TouchableOpacity, ActivityIndicator, Platform } from 'react-native';
-import { useAuth } from '@/context/AuthContext';
-import { theme } from '@/constants/theme';
+import React, { useState, useCallback } from 'react';
+import { StyleSheet, View, Text, Platform } from 'react-native';
+import { useAuth } from '../context/AuthContext';
+import { theme } from '../constants/theme';
 import { MaterialIcons } from '@expo/vector-icons';
-import { useColorScheme } from '@/hooks/use-color-scheme';
-import { supabase } from '../utils/supabase';
+import { useColorScheme } from '../hooks/use-color-scheme';
+
+import AuthButton from './auth/AuthButton';
 
 export default function VerifyEmailScreen() {
-  const { user, signOut } = useAuth();
+  const { user, logout, resendVerification, authLoading } = useAuth();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
-  
-  const [isResending, setIsResending] = useState(false);
+
   const [feedback, setFeedback] = useState({ type: null, message: '' });
 
-  const handleResend = async () => {
-    setIsResending(true);
+  const handleResend = useCallback(async () => {
     setFeedback({ type: null, message: '' });
-    
-    const { error } = await supabase.auth.resend({
-      type: 'signup',
-      email: user?.email,
-    });
 
-    setIsResending(false);
-    if (error) {
-      setFeedback({ type: 'error', message: error.message });
+    const result = await resendVerification();
+
+    if (result.error) {
+      setFeedback({ type: 'error', message: result.error });
     } else {
       setFeedback({ type: 'success', message: 'Verification email resent! Please check your inbox.' });
     }
-  };
+  }, [resendVerification]);
+
+  const handleBack = useCallback(async () => {
+    await logout();
+  }, [logout]);
 
   const backgroundColor = isDark ? theme.backgroundDark : theme.backgroundLight;
   const cardBackgroundColor = isDark ? theme.cardBgDark : theme.cardBgLight;
@@ -43,49 +42,58 @@ export default function VerifyEmailScreen() {
         <View style={styles.iconContainer}>
           <MaterialIcons name="mark-email-read" size={48} color={theme.primary} />
         </View>
-        
+
         <Text style={[styles.title, { color: textColor }]}>Verify Your Email</Text>
-        
+
         <Text style={[styles.explanation, { color: subtextColor }]}>
-          Please check your inbox <Text style={{ fontWeight: '700', color: textColor }}>{user?.email || 'your email'}</Text> and click the link to verify your account.
+          Please check your inbox{' '}
+          <Text style={{ fontWeight: '700', color: textColor }}>
+            {user?.email || 'your email'}
+          </Text>{' '}
+          and click the link to verify your account.
         </Text>
 
         {feedback.message !== '' && (
-          <View style={[styles.feedbackBox, feedback.type === 'error' ? styles.errorBox : styles.successBox]}>
-            <MaterialIcons 
-              name={feedback.type === 'error' ? "error-outline" : "check-circle-outline"} 
-              size={18} 
-              color={feedback.type === 'error' ? "#ef4444" : theme.primary} 
+          <View
+            style={[
+              styles.feedbackBox,
+              feedback.type === 'error' ? styles.errorBox : styles.successBox,
+            ]}
+          >
+            <MaterialIcons
+              name={feedback.type === 'error' ? 'error-outline' : 'check-circle-outline'}
+              size={18}
+              color={feedback.type === 'error' ? '#ef4444' : theme.primary}
             />
-            <Text style={[styles.feedbackText, feedback.type === 'error' ? styles.errorText : styles.successText]}>
+            <Text
+              style={[
+                styles.feedbackText,
+                feedback.type === 'error' ? styles.errorText : styles.successText,
+              ]}
+            >
               {feedback.message}
             </Text>
           </View>
         )}
 
         <View style={styles.actions}>
-          <TouchableOpacity 
-            style={[styles.primaryButton, { backgroundColor: theme.primary }]}
+          <AuthButton
+            title="Resend Verification Email"
             onPress={handleResend}
-            disabled={isResending}
-          >
-            {isResending ? (
-              <ActivityIndicator color="#fff" size="small" />
-            ) : (
-              <Text style={styles.primaryButtonText}>Resend Verification Email</Text>
-            )}
-          </TouchableOpacity>
+            loading={authLoading}
+          />
 
-          <TouchableOpacity 
-            style={[styles.secondaryButton, { borderColor }]}
-            onPress={() => signOut()}
-          >
-            <Text style={[styles.secondaryButtonText, { color: textColor }]}>Back to Login</Text>
-          </TouchableOpacity>
+          <AuthButton
+            title="Back to Login"
+            variant="secondary"
+            onPress={handleBack}
+          />
         </View>
       </View>
-      
-      <Text style={[styles.footerText, { color: subtextColor }]}>Cool City Climate Intelligence</Text>
+
+      <Text style={[styles.footerText, { color: subtextColor }]}>
+        Cool City Climate Intelligence
+      </Text>
     </View>
   );
 }
@@ -116,7 +124,7 @@ const styles = StyleSheet.create({
       },
       web: {
         boxShadow: '0 8px 30px rgba(0,0,0,0.08)',
-      }
+      },
     }),
   },
   iconContainer: {
@@ -171,28 +179,6 @@ const styles = StyleSheet.create({
     width: '100%',
     gap: 12,
   },
-  primaryButton: {
-    height: 52,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  primaryButtonText: {
-    color: '#fff',
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  secondaryButton: {
-    height: 52,
-    borderRadius: 12,
-    borderWidth: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  secondaryButtonText: {
-    fontSize: 15,
-    fontWeight: '600',
-  },
   footerText: {
     marginTop: 32,
     fontSize: 12,
@@ -200,5 +186,5 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 1,
     opacity: 0.6,
-  }
+  },
 });

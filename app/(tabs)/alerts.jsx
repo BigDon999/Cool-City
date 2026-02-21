@@ -1,4 +1,5 @@
-import AdviceScreen from '@/components/AdviceScreen';
+import AdviceComp from '../../components/AdviceComp';
+
 export default function AlertsTab() {
-  return <AdviceScreen />;
+  return <AdviceComp />;
 }

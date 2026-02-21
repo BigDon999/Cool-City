@@ -1,115 +1,104 @@
 import { useEffect } from 'react';
+import { Alert } from 'react-native';
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import Constants, { ExecutionEnvironment } from 'expo-constants';
-import * as Notifications from 'expo-notifications';
-import { Stack } from 'expo-router';
+import * as Updates from 'expo-updates';
+import * as Linking from 'expo-linking';
+import { Stack, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import 'react-native-reanimated';
-import { useColorScheme } from '@/hooks/use-color-scheme';
-import { WeatherProvider } from '@/hooks/useWeather';
-import { AuthProvider } from '@/context/AuthContext';
-import ErrorBoundary from '@/components/ErrorBoundary';
+import { useColorScheme } from '../hooks/use-color-scheme';
+import { WeatherProvider } from '../hooks/useWeather';
+import { AuthProvider } from '../context/AuthContext';
+import ErrorBoundary from '../components/ErrorBoundary';
+import { 
+  setupNotificationHandler, 
+  setupNotificationListeners 
+} from '../utils/notifications';
+import { registerBackgroundWeatherTask } from '../services/backgroundWeatherTask';
 
-// 1. Configure Notification Handler (Required for foreground notifications)
-// Guarded for Expo Go SDK 53+
-if (Constants.executionEnvironment !== ExecutionEnvironment.StoreClient) {
-  try {
-    Notifications.setNotificationHandler({
-      handleNotification: async () => ({
-        shouldShowAlert: true,
-        shouldPlaySound: true,
-        shouldSetBadge: false,
-      }),
-    });
-  } catch (e) {
-    console.warn("Notification Handler Setup failed:", e.message);
-  }
-}
+// 1. Configure Notification Handler (Safe for Expo Go)
+setupNotificationHandler();
 
 export const unstable_settings = {
   anchor: '(tabs)'
 };
 
-/**
- * GLOBAL NOTIFICATION SETUP
- * This function is exported so it can be manually called from a Settings screen
- * rather than automatically on mount, adhering to Android 13/14 best practices.
- */
-export async function requestNotificationPermission() {
-  // 0. Guard for Expo Go (Remote push is removed in SDK 53)
-  if (Constants.executionEnvironment === ExecutionEnvironment.StoreClient) {
-    console.log("Notification: Remote Push omitted in Expo Go.");
-    return false;
-  }
-
-  try {
-    const { status: existingStatus } = await Notifications.getPermissionsAsync();
-    let finalStatus = existingStatus;
-    
-    if (existingStatus !== 'granted') {
-      const { status } = await Notifications.requestPermissionsAsync();
-      finalStatus = status;
-    }
-    
-    if (finalStatus !== 'granted') {
-      console.log("Notification: Permission not granted.");
-      return false;
-    }
-    
-    console.log("Notification: Permission granted.");
-    return true;
-  } catch (error) {
-    console.error("Notification Setup Error:", error);
-    return false;
-  }
-}
-
 export default function RootLayout() {
   const colorScheme = useColorScheme();
+  const router = useRouter();
 
+  // 🔄 Check for OTA updates on app launch
   useEffect(() => {
-    // 2. Setup Notification Listeners (Passive)
-    // Guarded for Expo Go SDK 53+
-    if (Constants.executionEnvironment === ExecutionEnvironment.StoreClient) {
-       return;
-    }
-
-    let isMounted = true;
-    let responseListener;
-    let notificationListener;
-
-    const setupListeners = async () => {
+    async function checkForUpdates() {
       try {
-        responseListener = Notifications.addNotificationResponseReceivedListener(response => {
-          try {
-            if (!isMounted) return;
-            if (response && response.notification) {
-                console.log("Notification Tapped:", response.notification.request.content.title);
-            }
-          } catch (e) { console.error("Notification Response Inner Error:", e); }
-        });
-
-        notificationListener = Notifications.addNotificationReceivedListener(notification => {
-            if (!isMounted) return;
-            console.log("Notification Received while app open");
-        });
+        if (__DEV__) return;
+        const update = await Updates.checkForUpdateAsync();
+        if (update.isAvailable) {
+          await Updates.fetchUpdateAsync();
+          Alert.alert(
+            "Update Available",
+            "A new version of Cool City has been downloaded. Restart now?",
+            [
+              { text: "Later", style: "cancel" },
+              { text: "Restart Now", onPress: async () => Updates.reloadAsync && await Updates.reloadAsync() },
+            ]
+          );
+        }
       } catch (e) {
-         console.warn("Notification Listeners failed to attach:", e.message);
+        console.warn("Update check failed:", e.message);
       }
-    };
+    }
+    checkForUpdates();
+  }, []);
 
-    setupListeners();
+  // 2. Setup Notification Listeners (Safe for Expo Go)
+  useEffect(() => {
+    const cleanup = setupNotificationListeners(
+      (response) => {
+        if (response?.notification) {
+          console.log("Notification Tapped:", response.notification.request.content.title);
+        }
+      },
+      (notification) => {
+        console.log("Notification Received while app open");
+      }
+    );
 
     return () => {
-      isMounted = false;
-      if (responseListener) {
-          try { Notifications.removeNotificationSubscription(responseListener); } catch (e) {}
-      }
-      if (notificationListener) {
-          try { Notifications.removeNotificationSubscription(notificationListener); } catch (e) {}
-      }
+      if (cleanup) cleanup();
     };
   }, []);
+
+  // 4. Register Background Weather Engine (5-min alerts)
+  useEffect(() => {
+    registerBackgroundWeatherTask();
+  }, []);
+
+  // 3. Deep Link Handler for auth/reset/verification (Warm & Cold Start Handling)
+  useEffect(() => {
+    const handleDeepLink = (event) => {
+      const url = event.url;
+      if (!url) return;
+
+      if (url.includes('access_token') || url.includes('type=')) {
+        // Route to our auth handler screen which will process the tokens
+        router.push({
+          pathname: '/auth',
+          params: { url }
+        });
+      }
+    };
+
+    // Listen for incoming URLs (Warm start)
+    const subscription = Linking.addEventListener('url', handleDeepLink);
+
+    // Check for initial URL (Cold start)
+    Linking.getInitialURL().then((url) => {
+      if (url) handleDeepLink({ url });
+    });
+
+    return () => subscription?.remove();
+  }, [router]);
 
   return (
     <ErrorBoundary>
@@ -119,6 +108,20 @@ export default function RootLayout() {
             <Stack>
               <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
               <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
+              <Stack.Screen 
+                name="auth" 
+                options={{ 
+                  headerShown: false,
+                  gestureEnabled: false,
+                }} 
+              />
+              <Stack.Screen 
+                name="reset-password" 
+                options={{ 
+                  headerShown: false,
+                  gestureEnabled: false,
+                }} 
+              />
             </Stack>
             <StatusBar style="auto" />
           </ThemeProvider>

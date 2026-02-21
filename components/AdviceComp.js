@@ -1,15 +1,17 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { StyleSheet, Text, View, ScrollView, TouchableOpacity, Image, Platform, StatusBar, RefreshControl, Alert } from 'react-native';
+import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import NativeMap from './NativeMap';
-import { useColorScheme } from '@/hooks/use-color-scheme';
-import { useWeather } from '@/hooks/useWeather';
-import { theme } from '@/constants/theme';
-import ExtremeHeatModal from '@/components/ExtremeHeatModal';
+import { useColorScheme } from '../hooks/use-color-scheme';
+import { useWeather } from '../hooks/useWeather';
+import { theme } from '../constants/theme';
+import ExtremeHeatModal from './ExtremeHeatModal';
 
 export default function AdviceScreen() {
+  const router = useRouter();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
   const { heatIndex, risk, advice, locationName, refresh, location, tips, isVulnerable, setIsVulnerable } = useWeather();
@@ -119,15 +121,27 @@ export default function AdviceScreen() {
         >
           <View style={styles.cardsContainer}>
             {tips && Array.isArray(tips) && tips.map((tip, index) => (
-              <View key={index} style={[styles.card, { backgroundColor: cardBg, borderColor: theme.primary + '1A' }]}>
+              <TouchableOpacity 
+                key={index} 
+                style={[styles.card, { backgroundColor: cardBg, borderColor: theme.primary + '1A' }]}
+                onPress={() => {
+                  if (tip.actionType) {
+                    router.push({ pathname: '/map', params: { autoRoute: 'true', filter: tip.actionType } });
+                  }
+                }}
+                activeOpacity={tip.actionType ? 0.7 : 1}
+              >
                 <View style={[styles.iconContainer, { backgroundColor: theme.primary + '1A' }]}>
                   <MaterialIcons name={tip.icon} size={24} color={theme.primary} />
                 </View>
                 <View style={styles.cardContent}>
-                  <Text style={[styles.cardTitle, { color: textColor }]}>{tip.title}</Text>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Text style={[styles.cardTitle, { color: textColor }]}>{tip.title}</Text>
+                    {tip.actionType && <MaterialIcons name="chevron-right" size={18} color={theme.primary} />}
+                  </View>
                   <Text style={[styles.cardText, { color: subtextColor }]}>{tip.text}</Text>
                 </View>
-              </View>
+              </TouchableOpacity>
             ))}
 
             {/* Local Status Card with Map */}
@@ -149,7 +163,7 @@ export default function AdviceScreen() {
                 <View style={{ position: 'absolute', bottom: 20, left: 20, right: 20 }}>
                   <Text style={[styles.statusLabel, { color: riskColor }]}>LIVE CONTEXT</Text>
                   <Text style={styles.statusText}>
-                    {locationName}: current status is {risk}. Check the guidelines below.
+                    {locationName}: current status is {risk}. Check the guidelines Above.
                   </Text>
                 </View>
               </LinearGradient>
@@ -168,7 +182,7 @@ export default function AdviceScreen() {
            <View style={[styles.footerContent, {backgroundColor: isDark ? theme.backgroundDark : theme.backgroundLight}]}>
                 <TouchableOpacity 
                   style={[styles.actionButton, { backgroundColor: riskColor }]}
-                  onPress={() => Alert.alert("Coming Soon", "Routing functionality coming soon!")}
+                  onPress={() => router.push({ pathname: '/map', params: { autoRoute: 'true', filter: 'cooling' } })}
                 >
                     <MaterialIcons name="alt-route" size={20} color="#fff" style={{ marginRight: 8 }} />
                     <Text style={styles.actionButtonText}>See Cool Routes</Text>
@@ -231,11 +245,11 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     marginTop: 20,
     borderWidth: 1,
-    borderRadius: 16,
-    marginTop: 20,
-    borderWidth: 1,
-    boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
     elevation: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
   },
   modeContent: {
     flexDirection: 'row',
@@ -267,9 +281,11 @@ const styles = StyleSheet.create({
     width: 20,
     height: 20,
     borderRadius: 10,
-    borderRadius: 10,
-    boxShadow: "0 1px 2px rgba(0,0,0,0.2)",
     elevation: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 1,
   },
   subtitle: {
     fontSize: 14,
@@ -294,11 +310,11 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     gap: 16,
     borderWidth: 1,
-    // iOS shadow
-    borderWidth: 1,
-    // iOS/Web shadow
-    boxShadow: '0 4px 20px rgba(46, 204, 112, 0.12)',
-    elevation: 2, // Android shadow
+    elevation: 2,
+    shadowColor: '#2ecc70',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 10,
   },
   iconContainer: {
     padding: 12,
@@ -365,10 +381,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    alignItems: 'center',
-    justifyContent: 'center',
-    boxShadow: "0 4px 8px rgba(46, 204, 112, 0.3)",
     elevation: 4,
+    shadowColor: "#2ecc70",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
   },
   actionButtonText: {
     color: '#fff',

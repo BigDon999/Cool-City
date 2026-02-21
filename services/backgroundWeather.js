@@ -5,33 +5,52 @@ import * as SecureStore from 'expo-secure-store';
 import * as Location from 'expo-location';
 import Constants, { ExecutionEnvironment } from 'expo-constants';
 
+import { fetchWeather, calculateHeatRisk } from './openWeatherService';
+
 const TASK_NAME = 'BACKGROUND_WEATHER_TASK';
 
 // 1. Define Task globally once. This is the only way to avoid re-definition crashes.
 TaskManager.defineTask(TASK_NAME, async () => {
   try {
-    console.log("Background Task: Executing...");
+    if (__DEV__) console.log("Background Task: Executing...");
+    
+    // Check if notifications are disabled in settings
     const notificationsEnabled = await SecureStore.getItemAsync('notificationsEnabled');
     if (notificationsEnabled === 'false') return BackgroundFetch.BackgroundFetchResult.NoData;
 
+    // Get last known location
     const jsonLocation = await SecureStore.getItemAsync('lastLocation');
     const location = jsonLocation ? JSON.parse(jsonLocation) : null;
     if (!location) return BackgroundFetch.BackgroundFetchResult.NoData;
 
     const { lat, lon } = location;
-    const response = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m`);
-    const data = await response.json();
     
-    if (!data.current) return BackgroundFetch.BackgroundFetchResult.Failed;
+    // Fetch fresh weather
+    const data = await fetchWeather(lat, lon);
+    if (!data || data.error) return BackgroundFetch.BackgroundFetchResult.Failed;
     
-    // Simple Heat Calculation
-    const temp = data.current.temperature_2m;
-    if (temp >= 32) {
+    // Sophisticated Heat Risk Calculation
+    const { heatIndex, risk } = calculateHeatRisk(data.temperature, data.humidity, data.uvi || 0);
+
+    // Only notify if risk is not SAFE
+    if (risk !== 'SAFE') {
+      let color = "#2ecc71"; // Safe
+      let priority = Notifications.AndroidImportance.DEFAULT;
+      
+      switch (risk) {
+        case 'EXTREME': color = "#8e44ad"; priority = Notifications.AndroidImportance.MAX; break;
+        case 'DANGER': color = "#ef4444"; priority = Notifications.AndroidImportance.HIGH; break;
+        case 'CAUTION': color = "#f39c12"; break;
+        case 'MODERATE': color = "#f1c40f"; break;
+      }
+
       await Notifications.scheduleNotificationAsync({
         content: {
-          title: "⚠️ High Heat Alert (Background)",
-          body: `Temperature is ${temp}°C. Avoid prolonged exposure.`,
+          title: `⚠️ ${risk} Heat Warning`,
+          body: `Temperature is ${data.temperature}°C (Feels like ${heatIndex}°C). Protective action recommended.`,
           sound: 'default',
+          color: color,
+          data: { risk, heatIndex },
         },
         trigger: null,
       });
@@ -40,7 +59,7 @@ TaskManager.defineTask(TASK_NAME, async () => {
 
     return BackgroundFetch.BackgroundFetchResult.NoData;
   } catch (error) {
-    console.error("Background Task logic failed:", error);
+    if (__DEV__) console.error("Background Task logic failed:", error);
     return BackgroundFetch.BackgroundFetchResult.Failed;
   }
 });
@@ -50,35 +69,28 @@ export async function registerBackgroundWeatherTask() {
   try {
     // a. Check Environment
     if (Constants.executionEnvironment === ExecutionEnvironment.StoreClient) {
-      console.log("Background Task: Blocked (Expo Go does not support background tasks).");
+      if (__DEV__) console.log("Background Task: Blocked (Expo Go does not support background tasks).");
       return { success: false, reason: 'EXPO_GO' };
     }
 
     // b. Check Foreground Permission First (Required for registration)
     const { status: foreStatus } = await Location.getForegroundPermissionsAsync();
     if (foreStatus !== 'granted') {
-      console.log("Background Task: Registration failed (Missing foreground permission).");
+      if (__DEV__) console.log("Background Task: Registration failed (Missing foreground permission).");
       return { success: false, reason: 'NO_FOREGROUND' };
     }
 
-    // c. Check if already registered to prevent duplicates
-    const isRegistered = await TaskManager.isTaskRegisteredAsync(TASK_NAME);
-    if (isRegistered) {
-      console.log("Background Task: Already active.");
-      return { success: true, reason: 'ALREADY_REGISTERED' };
-    }
-
-    // d. Register
+    // c. Register (registerTaskAsync handles re-registration safely)
     await BackgroundFetch.registerTaskAsync(TASK_NAME, {
-      minimumInterval: 60 * 15, // 15 mins
+      minimumInterval: 60 * 5, // 5 mins
       stopOnTerminate: false,
       startOnBoot: true,
     });
 
-    console.log("Background Task: Successfully registered.");
+    if (__DEV__) console.log("Background Task: Successfully registered (5 min interval).");
     return { success: true };
   } catch (err) {
-    console.error("Background Task Registration Error:", err);
+    if (__DEV__) console.error("Background Task Registration Error:", err);
     return { success: false, reason: 'CRASH_PREVENTED' };
   }
 }

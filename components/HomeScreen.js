@@ -1,38 +1,75 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { StyleSheet, Text, View, ScrollView, TouchableOpacity, StatusBar, Platform, RefreshControl, Image, Alert } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { useColorScheme } from '@/hooks/use-color-scheme';
-import { useWeather } from '@/hooks/useWeather';
+import { useColorScheme } from '../hooks/use-color-scheme';
+import { useWeather } from '../hooks/useWeather';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import ExtremeHeatModal from '@/components/ExtremeHeatModal';
+import ExtremeHeatModal from './ExtremeHeatModal';
+import PermissionPrompt from './PermissionPrompt';
+
+import { useRouter } from 'expo-router';
 
 export default function HomeScreenDisplay() {
+  const router = useRouter();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
   const { 
     temperature, humidity, heatIndex, risk, locationName, 
-    loading, advice, tips, refresh, 
+    loading, advice, tips, refresh, permissionStatus,
+    requestLocationPermission,
     forecastHeat, isHeatwave, heatwaveLevel, heatwaveDays,
-    predictiveRisk, predictiveRiskData, // Assuming predictiveRisk is array of objects { day, score } or temps
+    predictiveRisk, predictiveRiskData,
     // City Risk & System Impact
     cityRiskPercent, activeCenters, cityRiskLevel,
+    coolingCount, hydrationCount,
     hospitalLoad, emergencyIncrease, coolingDemand, systemStress,
     policyCenters, setPolicyCenters,
-    dailyTemps // Need actual forecast data for 5-day list
+    dailyTemps, centersData
   } = useWeather();
   
   const [refreshing, setRefreshing] = useState(false);
   const [showSimulator, setShowSimulator] = useState(false);
   const [showAlert, setShowAlert] = useState(false);
+  const [showLocationPrompt, setShowLocationPrompt] = useState(false);
+  const [showNotificationPrompt, setShowNotificationPrompt] = useState(false);
+  const [dismissedLocationCTA, setDismissedLocationCTA] = useState(false);
 
-  const onRefresh = React.useCallback(() => {
+  // Whether we should show the inline location CTA card
+  const needsLocation = permissionStatus !== 'granted' && !dismissedLocationCTA;
+
+  const onRefresh = useCallback(() => {
     setRefreshing(true);
     refresh().finally(() => setTimeout(() => setRefreshing(false), 500));
   }, [refresh]);
 
+  // Called when user grants location from PermissionPrompt
+  const handleLocationGranted = useCallback(() => {
+    setShowLocationPrompt(false);
+    setDismissedLocationCTA(true);
+    // Auto-refresh to fetch weather for the new location
+    setRefreshing(true);
+    refresh().finally(() => setTimeout(() => setRefreshing(false), 500));
+  }, [refresh]);
+
+  const handleNotificationGranted = useCallback(() => {
+    setShowNotificationPrompt(false);
+  }, []);
+
+  // Show alert immediately when risk becomes EXTREME
   useEffect(() => {
      if (risk === "EXTREME") setShowAlert(true);
+  }, [risk]);
+
+  // Periodic heat advice popup every 5 minutes when risk is elevated
+  useEffect(() => {
+    if (risk && risk !== "SAFE") {
+      const intervalId = setInterval(() => {
+        setShowAlert(true);
+      }, 5 * 60 * 1000); // 5 minutes
+
+      return () => clearInterval(intervalId);
+    }
   }, [risk]);
 
   // Colors from design
@@ -64,25 +101,103 @@ export default function HomeScreenDisplay() {
   // Placeholder for forecast if not available
   const forecastList = dailyTemps && dailyTemps.length > 0 ? dailyTemps.slice(0, 5) : [30, 32, 29, 28, 27];
 
+  // Compute banner alert level and estimated time
+  const showBanner = risk && risk !== "SAFE";
+  const getBannerInfo = () => {
+    if (isHeatwave) {
+      return {
+        label: 'ACTIVE HEATWAVE ALERT',
+        sub: `EST. ${heatwaveDays ? heatwaveDays * 24 : 48}H REMAINING`,
+        bg: '#D93025',
+      };
+    }
+    if (risk === 'EXTREME') {
+      return { label: 'EXTREME HEAT ALERT', sub: 'TAKE ACTION NOW', bg: '#8e44ad' };
+    }
+    if (risk === 'DANGER') {
+      return { label: 'DANGER HEAT ALERT', sub: 'STAY INDOORS', bg: '#ef4444' };
+    }
+    if (risk === 'CAUTION') {
+      return { label: 'HEAT ADVISORY', sub: 'STAY HYDRATED', bg: '#e67e22' };
+    }
+    return { label: 'MODERATE HEAT NOTICE', sub: 'BE AWARE', bg: '#f39c12' };
+  };
+  const bannerInfo = getBannerInfo();
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: bgColor }]}>
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
       
-      {/* Header Heatwave Banner */}
-      {isHeatwave && (
-          <View style={[styles.banner, heatwaveLevel === 'Extreme' && { backgroundColor: colors.extreme }]}>
+      {/* Header Heatwave/Heat Alert Banner */}
+      {showBanner && (
+          <View style={[styles.banner, { backgroundColor: bannerInfo.bg }]}>
               <View style={styles.bannerContent}>
-                  <MaterialIcons name="warning" size={16} color="#fff" />
-                  <Text style={styles.bannerText}>Active Heatwave: {heatwaveLevel} Level</Text>
+                  <View style={styles.bannerIconWrap}>
+                      <MaterialIcons name="warning" size={14} color="#fff" />
+                  </View>
+                  <Text style={styles.bannerText}>{bannerInfo.label}</Text>
               </View>
-              <Text style={styles.bannerSubtext}>{heatwaveDays} Days Active</Text>
+              <Text style={styles.bannerSubtext}>{bannerInfo.sub}</Text>
           </View>
+      )}
+
+      {/* ─── AUTO-ROUTE QUICK ACTION ────────────────────────── */}
+      {risk !== 'SAFE' && centersData && centersData.length > 0 && (
+        <TouchableOpacity
+          style={styles.autoRouteCard}
+          onPress={() => router.push({ pathname: '/map', params: { autoRoute: 'true' } })}
+        >
+          <LinearGradient
+            colors={['#3b82f6', '#2563eb']}
+            style={styles.autoRouteGradient}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+          >
+            <View style={styles.autoRouteLeft}>
+              <View style={styles.autoRouteIcon}>
+                <MaterialCommunityIcons name="navigation-variant" size={24} color="#fff" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.autoRouteTitle}>Nearest Cooling Center found!</Text>
+                <Text style={styles.autoRouteName} numberOfLines={1}>
+                  {centersData[0].title} • {(centersData[0].distance / 1000).toFixed(1)} km
+                </Text>
+              </View>
+            </View>
+            <View style={styles.autoRouteButton}>
+              <Text style={styles.autoRouteButtonText}>ROUTE NOW</Text>
+              <MaterialIcons name="chevron-right" size={18} color="#fff" />
+            </View>
+          </LinearGradient>
+        </TouchableOpacity>
       )}
 
       <ScrollView 
         contentContainerStyle={styles.scrollContent}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
       >
+        {/* ─── LOCATION PERMISSION CTA ──────────────────────── */}
+        {needsLocation && (
+          <TouchableOpacity
+            style={[styles.permissionCTA, { backgroundColor: isDark ? 'rgba(59, 130, 246, 0.08)' : '#eff6ff', borderColor: isDark ? 'rgba(59, 130, 246, 0.2)' : '#bfdbfe' }]}
+            onPress={() => setShowLocationPrompt(true)}
+            activeOpacity={0.85}
+          >
+            <View style={styles.permissionCTALeft}>
+              <View style={[styles.permissionCTAIcon, { backgroundColor: isDark ? 'rgba(59, 130, 246, 0.15)' : '#dbeafe' }]}>
+                <MaterialIcons name="my-location" size={22} color="#3b82f6" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.permissionCTATitle, { color: textColor }]}>Enable Location for Live Data</Text>
+                <Text style={[styles.permissionCTADesc, { color: isDark ? '#94a3b8' : '#64748b' }]}>Get real-time heat risk and nearby cooling centers</Text>
+              </View>
+            </View>
+            <View style={styles.permissionCTAArrow}>
+              <MaterialIcons name="chevron-right" size={24} color="#3b82f6" />
+            </View>
+          </TouchableOpacity>
+        )}
+
         {/* Header Location */}
         <View style={styles.header}>
             <View>
@@ -173,12 +288,12 @@ export default function HomeScreenDisplay() {
                     <Text style={styles.intelligenceLabel}>Danger Zone</Text>
                 </View>
                 <View style={[styles.intelligenceCard, { backgroundColor: cardBg, borderColor: isDark ? 'rgba(255,255,255,0.1)' : '#e2e8f0' }]}>
-                    <Text style={[styles.intelligenceValue, { color: textColor }]}>128k</Text>
-                    <Text style={styles.intelligenceLabel}>Vulnerable Pop.</Text>
+                    <Text style={[styles.intelligenceValue, { color: colors.primary }]}>{coolingCount}</Text>
+                    <Text style={styles.intelligenceLabel}>Cooling Hubs</Text>
                 </View>
                 <View style={[styles.intelligenceCard, { backgroundColor: cardBg, borderColor: isDark ? 'rgba(255,255,255,0.1)' : '#e2e8f0' }]}>
-                    <Text style={[styles.intelligenceValue, { color: colors.primary }]}>{activeCenters}</Text>
-                    <Text style={styles.intelligenceLabel}>Active Centers</Text>
+                    <Text style={[styles.intelligenceValue, { color: '#3b82f6' }]}>{hydrationCount}</Text>
+                    <Text style={styles.intelligenceLabel}>Hydration Points</Text>
                 </View>
                 <View style={[styles.intelligenceCard, { backgroundColor: cardBg, borderColor: isDark ? 'rgba(255,255,255,0.1)' : '#e2e8f0' }]}>
                     <Text style={[styles.intelligenceValue, { color: colors.danger }]}>{cityRiskLevel}</Text>
@@ -258,7 +373,7 @@ export default function HomeScreenDisplay() {
         {/* Action Button */}
         <TouchableOpacity 
             style={styles.locatorButton}
-            onPress={() => Alert.alert("Navigation", "Navigating to Map...")} 
+            onPress={() => router.push('/(tabs)/map')} 
         >
             <MaterialIcons name="ac-unit" size={20} color="#fff" style={{marginRight: 8}} />
             <Text style={styles.locatorButtonText}>Locate Active Cooling Center</Text>
@@ -318,7 +433,25 @@ export default function HomeScreenDisplay() {
         visible={showAlert} 
         onClose={() => setShowAlert(false)} 
         heatIndex={heatIndex} 
-        advice={advice} 
+        advice={advice}
+        risk={risk}
+      />
+
+      {/* Permission Prompt Overlays */}
+      <PermissionPrompt
+        type="location"
+        visible={showLocationPrompt}
+        onGranted={handleLocationGranted}
+        onDismiss={() => {
+          setShowLocationPrompt(false);
+          setDismissedLocationCTA(true);
+        }}
+      />
+      <PermissionPrompt
+        type="notification"
+        visible={showNotificationPrompt}
+        onGranted={handleNotificationGranted}
+        onDismiss={() => setShowNotificationPrompt(false)}
       />
     </SafeAreaView>
   );
@@ -328,33 +461,139 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  permissionCTA: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginHorizontal: 12,
+    marginTop: 8,
+    marginBottom: 4,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+  },
+  permissionCTALeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    gap: 12,
+  },
+  permissionCTAIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  permissionCTATitle: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  permissionCTADesc: {
+    fontSize: 11,
+    marginTop: 2,
+  },
+  permissionCTAArrow: {
+    marginLeft: 8,
+  },
   scrollContent: {
     paddingBottom: 100,
   },
   banner: {
-      backgroundColor: '#ef4444',
-      paddingHorizontal: 20,
-      paddingVertical: 8,
+      backgroundColor: '#D93025',
+      marginHorizontal: 12,
+      marginTop: 4,
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      borderRadius: 12,
       flexDirection: 'row',
       justifyContent: 'space-between',
+      alignItems: 'center',
+  },
+  autoRouteCard: {
+    marginHorizontal: 12,
+    marginTop: 8,
+    borderRadius: 16,
+    overflow: 'hidden',
+    boxShadow: '0 4px 15px rgba(59, 130, 246, 0.4)',
+    elevation: 6,
+  },
+  autoRouteGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+  autoRouteLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    gap: 12,
+  },
+  autoRouteIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  autoRouteTitle: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    opacity: 0.9,
+  },
+  autoRouteName: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '900',
+    marginTop: 2,
+  },
+  autoRouteButton: {
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  autoRouteButtonText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
+  bannerIconWrap: {
+      width: 24,
+      height: 24,
+      borderRadius: 4,
+      backgroundColor: 'rgba(0,0,0,0.15)',
+      justifyContent: 'center',
       alignItems: 'center',
   },
   bannerContent: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 8,
+      gap: 10,
   },
   bannerText: {
       color: '#fff',
-      fontSize: 11,
-      fontWeight: 'bold',
+      fontSize: 12,
+      fontWeight: '900',
       textTransform: 'uppercase',
-      letterSpacing: 1,
+      letterSpacing: 1.2,
   },
   bannerSubtext: {
-      color: 'rgba(255,255,255,0.8)',
-      fontSize: 10,
-      fontWeight: '600',
+      color: 'rgba(255,255,255,0.85)',
+      fontSize: 9,
+      fontWeight: '700',
+      textTransform: 'uppercase',
+      letterSpacing: 0.8,
   },
   header: {
       flexDirection: 'row',
