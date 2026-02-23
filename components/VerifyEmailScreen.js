@@ -6,6 +6,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { useColorScheme } from '../hooks/use-color-scheme';
 
 import AuthButton from './auth/AuthButton';
+import BubblesBackground from './auth/BubblesBackground';
 
 export default function VerifyEmailScreen() {
   const { user, logout, resendVerification, authLoading } = useAuth();
@@ -38,6 +39,7 @@ export default function VerifyEmailScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor }]}>
+      <BubblesBackground color={theme.primary} />
       <View style={[styles.card, { backgroundColor: cardBackgroundColor, borderColor }]}>
         <View style={styles.iconContainer}>
           <MaterialIcons name="mark-email-read" size={48} color={theme.primary} />
@@ -92,7 +94,7 @@ export default function VerifyEmailScreen() {
       </View>
 
       <Text style={[styles.footerText, { color: subtextColor }]}>
-        Cool City Climate Intelligence
+        CoolCity Climate Intelligence
       </Text>
     </View>
   );

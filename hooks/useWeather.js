@@ -4,6 +4,7 @@ import * as SecureStore from 'expo-secure-store';
 import { fetchWeather, calculateHeatRisk } from '../services/openWeatherService';
 import { CoolingCenterService } from '../services/coolingCenterService';
 import { supabase } from '../utils/supabase';
+import NetInfo from '@react-native-community/netinfo';
 
 // ──────────────────────────────────────────────────────────────
 // Constants
@@ -273,6 +274,11 @@ export const WeatherProvider = ({ children }) => {
     else setSystemStress('Overloaded');
   }, [heatIndex, temperature, isVulnerable, policyCenters]);
 
+  // Save Vulnerable Mode preference when it changes
+  useEffect(() => {
+    SecureStore.setItemAsync('vulnerable_mode', isVulnerable.toString());
+  }, [isVulnerable]);
+
   // ──────────────────────────────────────────────────────────
   // Fetch weather with rate-limiting
   // ──────────────────────────────────────────────────────────
@@ -532,6 +538,12 @@ export const WeatherProvider = ({ children }) => {
     setError(null);
 
     try {
+      const netInfo = await NetInfo.fetch();
+      if (!netInfo.isConnected) {
+        setError('Working Offline - showing cached data');
+        return null;
+      }
+
       const { status } = await Location.getForegroundPermissionsAsync();
       if (isMounted.current) setPermissionStatus(status);
 
@@ -592,7 +604,15 @@ export const WeatherProvider = ({ children }) => {
           setLastUpdated('Cached');
         }
 
-        // 3. Load cached location name
+        // 3. Load Vulnerable Mode preference
+        try {
+          const vulnerableMode = await SecureStore.getItemAsync('vulnerable_mode');
+          if (vulnerableMode !== null && mounted) {
+            setIsVulnerable(vulnerableMode === 'true');
+          }
+        } catch (_) { /* ignore */ }
+
+        // 4. Load cached location name
         try {
           const locRaw = await SecureStore.getItemAsync(LOCATION_CACHE_KEY);
           if (locRaw && mounted) {

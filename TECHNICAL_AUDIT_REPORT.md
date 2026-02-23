@@ -1,7 +1,7 @@
-# 🛡️ Technical Audit & Stability Report: Cool City
+# 🛡️ Technical Audit & Stability Report: CoolCity
 
 ## 1️⃣ Executive Summary
-The **Cool City** project is a high-quality Expo React Native application with a robust foundation. It utilizes modern patterns like **Expo Router**, **Supabase Auth**, and **Hardware-encrypted Secure Storage**. The UI is exceptionally polished, using glassmorphism (BlurView) and dark-mode support. 
+The **CoolCity** project is a high-quality Expo React Native application with a robust foundation. It utilizes modern patterns like **Expo Router**, **Supabase Auth**, and **Hardware-encrypted Secure Storage**. The UI is exceptionally polished, using glassmorphism (BlurView) and dark-mode support. 
 
 However, there are critical "Stability Landmines" primarily concerning **Location Permissions** and **Async State Synchronization** that could cause production crashes if not addressed.
 

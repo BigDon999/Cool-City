@@ -4,6 +4,7 @@ import { theme } from '../constants/theme';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useColorScheme } from '../hooks/use-color-scheme';
 import { LinearGradient } from 'expo-linear-gradient';
+import BubblesBackground from './auth/BubblesBackground';
 
 export default function WelcomeScreen() {
   const colorScheme = useColorScheme();
@@ -15,12 +16,13 @@ export default function WelcomeScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor }]}>
+      <BubblesBackground color={theme.primary} />
       <View style={styles.content}>
         <View style={styles.successIcon}>
           <MaterialIcons name="verified-user" size={60} color={theme.primary} />
         </View>
         
-        <Text style={[styles.title, { color: textColor }]}>Welcome back to Cool City</Text>
+        <Text style={[styles.title, { color: textColor }]}>Welcome back to CoolCity</Text>
         
         <Text style={[styles.subtitle, { color: subtextColor }]}>
           Your account has been successfully verified. We're finalizing your environment metrics.

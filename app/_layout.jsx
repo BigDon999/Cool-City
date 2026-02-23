@@ -15,6 +15,7 @@ import {
   setupNotificationListeners 
 } from '../utils/notifications';
 import { registerBackgroundWeatherTask } from '../services/backgroundWeatherTask';
+import OfflineNotice from '../components/OfflineNotice';
 
 // 1. Configure Notification Handler (Safe for Expo Go)
 setupNotificationHandler();
@@ -37,7 +38,7 @@ export default function RootLayout() {
           await Updates.fetchUpdateAsync();
           Alert.alert(
             "Update Available",
-            "A new version of Cool City has been downloaded. Restart now?",
+            "A new version of CoolCity has been downloaded. Restart now?",
             [
               { text: "Later", style: "cancel" },
               { text: "Restart Now", onPress: async () => Updates.reloadAsync && await Updates.reloadAsync() },
@@ -105,6 +106,7 @@ export default function RootLayout() {
       <AuthProvider>
         <WeatherProvider>
           <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+            <OfflineNotice />
             <Stack>
               <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
               <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />

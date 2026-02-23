@@ -20,6 +20,7 @@ import AuthInput from './auth/AuthInput';
 import AuthButton from './auth/AuthButton';
 import PasswordStrengthIndicator from './auth/PasswordStrengthIndicator';
 import OnboardingScreen from './OnboardingScreen';
+import BubblesBackground from './auth/BubblesBackground';
 
 const PRIMARY = '#2ecc70';
 const ONBOARDING_KEY = '@coolcity_onboarding_complete';
@@ -195,8 +196,7 @@ export default function AuthScreen() {
   // ═══════════════════════════════════════════════════════════════
   return (
     <View style={[styles.container, { backgroundColor: bg }]}>
-      <View style={[styles.decorBlur1, { backgroundColor: `${PRIMARY}0D` }]} />
-      <View style={[styles.decorBlur2, { backgroundColor: `${PRIMARY}1A` }]} />
+      <BubblesBackground color={PRIMARY} />
 
       {signupSuccess ? (
         <View style={[styles.successContent, { paddingTop: insets.top + 80 }]}>

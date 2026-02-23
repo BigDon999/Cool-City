@@ -14,6 +14,7 @@ import { supabase } from '../utils/supabase';
 import { useColorScheme } from '../hooks/use-color-scheme';
 import { MaterialIcons } from '@expo/vector-icons';
 import AuthInput from '../components/auth/AuthInput';
+import BubblesBackground from '../components/auth/BubblesBackground';
 
 const PRIMARY = '#2ecc70';
 
@@ -41,7 +42,7 @@ export default function ResetPasswordScreen() {
   const bg = isDark ? '#131f18' : '#f6f8f7';
   const textColor = isDark ? '#f1f5f9' : '#0f172a';
   const subtextColor = isDark ? '#94a3b8' : '#64748b';
-  const cardBg = isDark ? 'rgba(15, 23, 42, 0.5)' : '#ffffff';
+  const cardBg = isDark ? '#1e293b' : '#ffffff';
   const borderColor = isDark ? '#1e293b' : '#e2e8f0';
 
   const handleResetPassword = useCallback(async () => {
@@ -101,6 +102,7 @@ export default function ResetPasswordScreen() {
   if (success) {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: bg }]}>
+        <BubblesBackground color={PRIMARY} />
         <View style={styles.successContainer}>
           <View style={styles.successIcon}>
             <MaterialIcons name="check-circle" size={72} color={PRIMARY} />
@@ -118,6 +120,7 @@ export default function ResetPasswordScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: bg }]}>
+      <BubblesBackground color={PRIMARY} />
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}

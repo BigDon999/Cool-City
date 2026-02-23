@@ -56,7 +56,7 @@ export default function PermissionPrompt({ type = 'location', visible, onGranted
     iconBg: isDark ? 'rgba(59, 130, 246, 0.15)' : '#dbeafe',
     title: 'Enable Location',
     subtitle: 'Get accurate heat risk data for your area',
-    description: 'Cool City needs your location to show real-time temperature, heat index, and nearby cooling centers specific to where you are.',
+    description: 'CoolCity needs your location to show real-time temperature, heat index, and nearby cooling centers specific to where you are.',
     features: [
       { icon: 'device-thermostat', text: 'Live heat risk for your neighborhood' },
       { icon: 'map', text: 'Find cooling centers near you' },
@@ -70,7 +70,7 @@ export default function PermissionPrompt({ type = 'location', visible, onGranted
     iconBg: isDark ? 'rgba(139, 92, 246, 0.15)' : '#ede9fe',
     title: 'Stay Protected',
     subtitle: 'Get critical heat alerts when it matters',
-    description: 'Cool City sends push notifications when dangerous heat conditions are detected in your area so you can take action before it\'s too late.',
+    description: 'CoolCity sends push notifications when dangerous heat conditions are detected in your area so you can take action before it\'s too late.',
     features: [
       { icon: 'warning', text: 'Extreme heat warnings' },
       { icon: 'schedule', text: 'Timely safety reminders' },

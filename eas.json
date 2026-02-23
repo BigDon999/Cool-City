@@ -7,18 +7,45 @@
     "development": {
       "developmentClient": true,
       "distribution": "internal",
-      "channel": "development"
+      "channel": "development",
+      "env": {
+        "EXPO_PUBLIC_SUPABASE_URL": "https://cifpfioxhhnrvzdiagks.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNpZnBmaW94aGhucnZ6ZGlhZ2tzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzExOTQ1MDYsImV4cCI6MjA4Njc3MDUwNn0.QLf5c79rKtimVsc-yabasepUp8GiMWq0cFgu6UzOHpg",
+        "EXPO_PUBLIC_OWM_API_KEY": "adb591fd983a94ad882b3895ff9d457f",
+        "EXPO_PUBLIC_OWM_BASE_URL": "https://api.openweathermap.org/data/2.5",
+        "EXPO_PUBLIC_OPEN_METEO_URL": "https://api.open-meteo.com/v1/forecast",
+        "EXPO_PUBLIC_GOOGLE_MAPS_API_KEY": "AIzaSyAhzgqunimNMAhyPReeTx63qNaJLSArrG0",
+        "GOOGLE_MAPS_API_KEY": "AIzaSyAhzgqunimNMAhyPReeTx63qNaJLSArrG0"
+      }
     },
     "preview": {
       "distribution": "internal",
       "channel": "preview",
       "android": {
         "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_SUPABASE_URL": "https://cifpfioxhhnrvzdiagks.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNpZnBmaW94aGhucnZ6ZGlhZ2tzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzExOTQ1MDYsImV4cCI6MjA4Njc3MDUwNn0.QLf5c79rKtimVsc-yabasepUp8GiMWq0cFgu6UzOHpg",
+        "EXPO_PUBLIC_OWM_API_KEY": "adb591fd983a94ad882b3895ff9d457f",
+        "EXPO_PUBLIC_OWM_BASE_URL": "https://api.openweathermap.org/data/2.5",
+        "EXPO_PUBLIC_OPEN_METEO_URL": "https://api.open-meteo.com/v1/forecast",
+        "EXPO_PUBLIC_GOOGLE_MAPS_API_KEY": "AIzaSyAhzgqunimNMAhyPReeTx63qNaJLSArrG0",
+        "GOOGLE_MAPS_API_KEY": "AIzaSyAhzgqunimNMAhyPReeTx63qNaJLSArrG0"
       }
     },
     "production": {
       "autoIncrement": true,
-      "channel": "production"
+      "channel": "production",
+      "env": {
+        "EXPO_PUBLIC_SUPABASE_URL": "https://cifpfioxhhnrvzdiagks.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNpZnBmaW94aGhucnZ6ZGlhZ2tzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzExOTQ1MDYsImV4cCI6MjA4Njc3MDUwNn0.QLf5c79rKtimVsc-yabasepUp8GiMWq0cFgu6UzOHpg",
+        "EXPO_PUBLIC_OWM_API_KEY": "adb591fd983a94ad882b3895ff9d457f",
+        "EXPO_PUBLIC_OWM_BASE_URL": "https://api.openweathermap.org/data/2.5",
+        "EXPO_PUBLIC_OPEN_METEO_URL": "https://api.open-meteo.com/v1/forecast",
+        "EXPO_PUBLIC_GOOGLE_MAPS_API_KEY": "AIzaSyAhzgqunimNMAhyPReeTx63qNaJLSArrG0",
+        "GOOGLE_MAPS_API_KEY": "AIzaSyAhzgqunimNMAhyPReeTx63qNaJLSArrG0"
+      }
     }
   },
   "submit": {

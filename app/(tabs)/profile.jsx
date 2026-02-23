@@ -13,9 +13,11 @@ import {
   ActivityIndicator,
   Image,
   Linking,
+  Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
+import * as SecureStore from 'expo-secure-store';
 import { useAuth } from '../../context/AuthContext';
 import { useWeather } from '../../hooks/useWeather';
 import AuthScreen from '../../components/AuthScreen';
@@ -38,6 +40,7 @@ export default function ProfileScreen() {
     isVerified,
     authLoading,
     uploadAvatar,
+    updatePassword,
   } = useAuth();
   const { isVulnerable, setIsVulnerable } = useWeather();
   const colorScheme = useColorScheme();
@@ -49,6 +52,31 @@ export default function ProfileScreen() {
   const [editError, setEditError] = useState('');
   const [editSuccess, setEditSuccess] = useState('');
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+  const [locationEnabled, setLocationEnabled] = useState(true);
+
+  // ─── Password Change State ──────────────────────────────────
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [pwError, setPwError] = useState('');
+
+  // ─── Load Preferences ───────────────────────────────────────
+  useEffect(() => {
+    const loadPrefs = async () => {
+      try {
+        const [notif, loc] = await Promise.all([
+          SecureStore.getItemAsync('notificationsEnabled'),
+          SecureStore.getItemAsync('locationEnabled')
+        ]);
+        
+        if (notif !== null) setNotificationsEnabled(notif === 'true');
+        if (loc !== null) setLocationEnabled(loc === 'true');
+      } catch (e) {
+        console.warn('Failed to load prefs');
+      }
+    };
+    loadPrefs();
+  }, []);
 
   // ─── Notification toggle handler ─────────────────────────────
   const handleNotificationToggle = useCallback(async (value) => {
@@ -57,6 +85,7 @@ export default function ProfileScreen() {
       const granted = await requestNotificationPermission();
       if (granted) {
         setNotificationsEnabled(true);
+        await SecureStore.setItemAsync('notificationsEnabled', 'true');
       } else {
         // Permission denied — guide user to Settings
         Alert.alert(
@@ -69,10 +98,33 @@ export default function ProfileScreen() {
         );
       }
     } else {
-      // User wants to DISABLE — just toggle the state
       setNotificationsEnabled(false);
+      await SecureStore.setItemAsync('notificationsEnabled', 'false');
     }
   }, []);
+
+  const toggleLocation = useCallback(async (val) => {
+    setLocationEnabled(val);
+    await SecureStore.setItemAsync('locationEnabled', val.toString());
+  }, []);
+
+  const handleChangePassword = useCallback(async () => {
+    setPwError('');
+    if (!newPassword || !confirmPassword) {
+      setPwError('Please fill in all fields');
+      return;
+    }
+    
+    const result = await updatePassword(newPassword, confirmPassword);
+    if (result?.error) {
+      setPwError(result.error);
+    } else {
+      Alert.alert('Success', 'Your password has been updated.');
+      setShowPasswordModal(false);
+      setNewPassword('');
+      setConfirmPassword('');
+    }
+  }, [newPassword, confirmPassword, updatePassword]);
 
   // ─── Auth gating ────────────────────────────────────────────
   if (!session) return <AuthScreen />;
@@ -93,9 +145,9 @@ export default function ProfileScreen() {
   const bg = isDark ? '#131f18' : '#f6f8f7';
   const textColor = isDark ? '#f1f5f9' : '#0f172a';
   const subtextColor = isDark ? '#94a3b8' : '#64748b';
-  const cardBg = isDark ? 'rgba(15, 23, 42, 0.4)' : '#ffffff';
-  const inputBg = isDark ? 'rgba(15, 23, 42, 0.5)' : '#ffffff';
-  const inputBgReadonly = isDark ? 'rgba(15, 23, 42, 0.3)' : '#f8fafc';
+  const cardBg = isDark ? '#1e293b' : '#ffffff';
+  const inputBg = isDark ? '#1e293b' : '#ffffff';
+  const inputBgReadonly = isDark ? '#0f172a' : '#f8fafc';
   const borderColor = isDark ? '#1e293b' : '#e2e8f0';
   const headerBg = isDark ? 'rgba(19, 31, 24, 0.8)' : 'rgba(246, 248, 247, 0.8)';
 
@@ -342,26 +394,26 @@ export default function ProfileScreen() {
                 { backgroundColor: cardBg, borderColor },
               ]}
             >
-              {/* Notifications toggle */}
-              <View style={[styles.toggleRow, { borderBottomColor: borderColor }]}>
-                <View style={styles.toggleLeft}>
-                  <View style={[styles.toggleIconBg, { backgroundColor: isDark ? 'rgba(59, 130, 246, 0.1)' : '#dbeafe' }]}>
-                    <MaterialIcons name="notifications" size={22} color={isDark ? '#60a5fa' : '#2563eb'} />
-                  </View>
-                  <View>
-                    <Text style={[styles.toggleTitle, { color: textColor }]}>Notifications</Text>
-                    <Text style={[styles.toggleDesc, { color: subtextColor }]}>
-                      Push & Email alerts
-                    </Text>
-                  </View>
+            {/* Notifications toggle */}
+            <View style={[styles.toggleRow, { borderBottomColor: borderColor }]}>
+              <View style={styles.toggleLeft}>
+                <View style={[styles.toggleIconBg, { backgroundColor: isDark ? 'rgba(59, 130, 246, 0.1)' : '#dbeafe' }]}>
+                  <MaterialIcons name="notifications" size={22} color={isDark ? '#60a5fa' : '#2563eb'} />
                 </View>
-                <Switch
-                  value={notificationsEnabled}
-                  onValueChange={handleNotificationToggle}
-                  trackColor={{ false: isDark ? '#334155' : '#cbd5e1', true: PRIMARY }}
-                  thumbColor="#fff"
-                />
+                <View>
+                  <Text style={[styles.toggleTitle, { color: textColor }]}>Notifications</Text>
+                  <Text style={[styles.toggleDesc, { color: subtextColor }]}>
+                    Push & Email alerts
+                  </Text>
+                </View>
               </View>
+              <Switch
+                value={notificationsEnabled}
+                onValueChange={handleNotificationToggle}
+                trackColor={{ false: isDark ? '#334155' : '#cbd5e1', true: PRIMARY }}
+                thumbColor="#fff"
+              />
+            </View>
 
               {/* Vulnerable Mode toggle */}
               <View style={styles.toggleRow}>
@@ -383,7 +435,45 @@ export default function ProfileScreen() {
                   thumbColor="#fff"
                 />
               </View>
+
+              {/* Location toggle */}
+              <View style={[styles.toggleRow, { borderTopColor: borderColor, borderTopWidth: StyleSheet.hairlineWidth }]}>
+                <View style={styles.toggleLeft}>
+                  <View style={[styles.toggleIconBg, { backgroundColor: isDark ? 'rgba(34, 197, 94, 0.1)' : '#dcfce7' }]}>
+                    <MaterialIcons name="location-on" size={22} color={isDark ? '#4ade80' : '#16a34a'} />
+                  </View>
+                  <View>
+                    <Text style={[styles.toggleTitle, { color: textColor }]}>Location Services</Text>
+                    <Text style={[styles.toggleDesc, { color: subtextColor }]}>
+                      Better local alerts
+                    </Text>
+                  </View>
+                </View>
+                <Switch
+                  value={locationEnabled}
+                  onValueChange={toggleLocation}
+                  trackColor={{ false: isDark ? '#334155' : '#cbd5e1', true: PRIMARY }}
+                  thumbColor="#fff"
+                />
+              </View>
             </View>
+          </View>
+
+          {/* ─── Security Section ───────────────────────────── */}
+          <View style={styles.section}>
+            <Text style={[styles.sectionLabel, { color: isDark ? '#475569' : '#94a3b8' }]}>
+              Security
+            </Text>
+            <TouchableOpacity 
+              style={[styles.fieldGroup, styles.actionCard, { backgroundColor: cardBg, borderColor }]}
+              onPress={() => setShowPasswordModal(true)}
+            >
+              <View style={styles.inputContainer}>
+                <MaterialIcons name="lock" size={22} color="#94a3b8" style={styles.inputIcon} />
+                <Text style={[styles.inputValue, { color: textColor }]}>Change Password</Text>
+                <MaterialIcons name="chevron-right" size={22} color="#94a3b8" style={{marginLeft: 'auto'}} />
+              </View>
+            </TouchableOpacity>
           </View>
 
           {/* ─── Danger Zone ────────────────────────────────── */}
@@ -409,10 +499,77 @@ export default function ProfileScreen() {
 
             {/* Version */}
             <Text style={[styles.versionText, { color: isDark ? '#334155' : '#94a3b8' }]}>
-              VERSION 1.0.0
+              VERSION {profile?.version || '1.0.0'}
             </Text>
           </View>
         </ScrollView>
+
+        {/* ─── Change Password Modal ───────────────────────── */}
+        <Modal
+          visible={showPasswordModal}
+          transparent={true}
+          animationType="fade"
+          onRequestClose={() => setShowPasswordModal(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={[styles.modalContent, { backgroundColor: cardBg }]}>
+              <View style={styles.modalHeaderModal}>
+                <Text style={[styles.modalTitle, { color: textColor }]}>Change Password</Text>
+                <TouchableOpacity onPress={() => setShowPasswordModal(false)}>
+                  <MaterialIcons name="close" size={24} color={subtextColor} />
+                </TouchableOpacity>
+              </View>
+              
+              <Text style={[styles.modalSub, { color: subtextColor }]}>
+                Password must be at least 8 characters with 1 uppercase letter and 1 number.
+              </Text>
+
+              <View style={styles.inputContainerModal}>
+                <Text style={[styles.inputLabelModal, { color: subtextColor }]}>NEW PASSWORD</Text>
+                <View style={[styles.inputWrapperModal, { borderColor: borderColor, backgroundColor: isDark ? '#0f172a' : '#f8fafc' }]}>
+                  <MaterialIcons name="lock-outline" size={20} color={PRIMARY} style={styles.inputIconModal} />
+                  <TextInput
+                    style={[styles.inputModal, { color: textColor }]}
+                    placeholder="••••••••"
+                    placeholderTextColor={subtextColor}
+                    secureTextEntry
+                    value={newPassword}
+                    onChangeText={setNewPassword}
+                  />
+                </View>
+              </View>
+
+              <View style={styles.inputContainerModal}>
+                <Text style={[styles.inputLabelModal, { color: subtextColor }]}>CONFIRM NEW PASSWORD</Text>
+                <View style={[styles.inputWrapperModal, { borderColor: borderColor, backgroundColor: isDark ? '#0f172a' : '#f8fafc' }]}>
+                  <MaterialIcons name="lock-clock" size={20} color={PRIMARY} style={styles.inputIconModal} />
+                  <TextInput
+                    style={[styles.inputModal, { color: textColor }]}
+                    placeholder="••••••••"
+                    placeholderTextColor={subtextColor}
+                    secureTextEntry
+                    value={confirmPassword}
+                    onChangeText={setConfirmPassword}
+                  />
+                </View>
+              </View>
+
+              {pwError ? <Text style={styles.errorTextModal}>{pwError}</Text> : null}
+
+              <TouchableOpacity 
+                style={[styles.primaryButtonModal, { backgroundColor: PRIMARY }]}
+                onPress={handleChangePassword}
+                disabled={authLoading}
+              >
+                {authLoading ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={styles.primaryButtonTextModal}>SAVE PASSWORD</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -685,5 +842,98 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 1,
     marginTop: 12,
+  },
+
+  // ── Modal Styles ──────────────────────────────────────────
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    width: '100%',
+    borderRadius: 28,
+    padding: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
+    elevation: 20,
+  },
+  modalHeaderModal: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  modalTitle: {
+    fontSize: 22,
+    fontWeight: '800',
+    letterSpacing: -0.5,
+  },
+  modalSub: {
+    fontSize: 13,
+    lineHeight: 18,
+    marginBottom: 24,
+    fontWeight: '500',
+  },
+  inputContainerModal: {
+    marginBottom: 16,
+  },
+  inputLabelModal: {
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 1,
+    marginBottom: 8,
+    marginLeft: 4,
+  },
+  inputWrapperModal: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    height: 56,
+    borderWidth: 1.5,
+    borderRadius: 16,
+    paddingHorizontal: 16,
+  },
+  inputIconModal: {
+    marginRight: 12,
+  },
+  inputModal: {
+    flex: 1,
+    height: '100%',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  errorTextModal: {
+    color: '#ef4444',
+    fontSize: 13,
+    fontWeight: '700',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  primaryButtonModal: {
+    height: 60,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 8,
+    shadowColor: PRIMARY,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    elevation: 5,
+  },
+  primaryButtonTextModal: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  actionCard: {
+    borderRadius: 18,
+    borderWidth: 1,
+    overflow: 'hidden',
   },
 });

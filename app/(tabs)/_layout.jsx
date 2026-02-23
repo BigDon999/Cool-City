@@ -95,7 +95,7 @@ export default function TabLayout() {
         name="profile"
         options={{
           title: 'Profile',
-          tabBarIcon: ({ color }) => <MaterialIcons name="settings" size={24} color={color} />,
+          tabBarIcon: ({ color }) => <MaterialIcons name="person" size={24} color={color} />,
         }}
       />
       {/* Hide explore if user doesn't want it anymore, or repurpose */}

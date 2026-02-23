@@ -10,9 +10,21 @@ import { useLocalSearchParams } from 'expo-router';
 import BottomSheet, { BottomSheetView, BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useWeather } from '../hooks/useWeather';
-import { theme } from '../constants/theme';
+import { theme, darkMapStyle } from '../constants/theme';
 import { CoolingCenterService } from '../services/coolingCenterService';
 import polyline from '@mapbox/polyline';
+
+// SAFE NATIVE IMPORT - Prevent fatal crash if module is missing
+let SpeechRecognition = null;
+try {
+  const lib = require('expo-speech-recognition');
+  SpeechRecognition = lib.SpeechRecognition;
+} catch (e) {
+  console.log('[MapScreen] SpeechRecognition module not found in this build');
+}
+
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Haptics from 'expo-haptics';
 
 const FALLBACK_REGION = {
   latitude: 37.7749,
@@ -55,6 +67,7 @@ export default function MapScreen() {
   const [routeCoordinates, setRouteCoordinates] = useState([]);
   const [selectedCenter, setSelectedCenter] = useState(null);
   const [isRouting, setIsRouting] = useState(false);
+  const [isListening, setIsListening] = useState(false);
   const isMounted = useRef(true);
 
   const { autoRoute, filter: initialFilter } = useLocalSearchParams();
@@ -90,8 +103,96 @@ export default function MapScreen() {
 
   useEffect(() => {
     isMounted.current = true;
-    return () => { isMounted.current = false; };
+    
+    // Check if module is available
+    if (!SpeechRecognition) return;
+
+    // expo-speech-recognition Listeners
+    const resultSub = SpeechRecognition.addEventListener("result", (event) => {
+      if (event.results && event.results.length > 0) {
+        const text = event.results[0].transcript;
+        setSearchQuery(text);
+        // Requirement: Stop listening automatically after result is captured
+        SpeechRecognition.stop(); 
+      }
+    });
+
+    const startSub = SpeechRecognition.addEventListener("start", () => setIsListening(true));
+    const endSub = SpeechRecognition.addEventListener("end", () => setIsListening(false));
+    const errorSub = SpeechRecognition.addEventListener("error", (event) => {
+      console.warn('Speech Recognition Error:', event.error);
+      setIsListening(false);
+    });
+
+    return () => { 
+      isMounted.current = false;
+      resultSub.remove();
+      startSub.remove();
+      endSub.remove();
+      errorSub.remove();
+      SpeechRecognition.stop();
+    };
   }, []);
+
+  // Auto-search after voice input is finalized
+  useEffect(() => {
+    if (!isListening && searchQuery.length > 2 && searchQuery !== '') {
+       // Only auto-trigger if the keyboard isn't already up (likely from voice)
+       const timer = setTimeout(() => {
+         handleSearch();
+       }, 500);
+       return () => clearTimeout(timer);
+    }
+  }, [isListening, searchQuery]);
+
+  const toggleVoiceSearch = async () => {
+    try {
+      // Safety check for native module availability
+      if (!SpeechRecognition) {
+        Alert.alert(
+          "Feature Unavailable",
+          "Voice search requires a native development build. It is not supported in the standard Expo Go app."
+        );
+        return;
+      }
+
+      if (isListening) {
+        SpeechRecognition.stop();
+        return;
+      }
+
+      // 1. Properly request permissions for both mic and speech interface
+      const { granted } = await SpeechRecognition.requestPermissionsAsync();
+      
+      if (!granted) {
+        Alert.alert(
+          "Permission Denied", 
+          "CoolCity needs microphone and speech recognition access to search by voice. Please enable them in your device settings."
+        );
+        return;
+      }
+
+      // 2. Start recognition with required configuration
+      setSearchQuery('');
+      SpeechRecognition.start({ 
+        lang: 'en-US', 
+        interimResults: false, // Wait for final result before updating state
+        continuous: false      // Stop after one result
+      });
+
+      // 3. Trigger feedback
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      setIsListening(true);
+
+    } catch (e) {
+      console.error('Voice search initialization failed:', e);
+      Alert.alert(
+        "Voice Search Error",
+        `Failed to start voice search: ${e.message}`
+      );
+      setIsListening(false);
+    }
+  };
 
   const handleSelectCenter = async (marker) => {
     if (isRouting) return;
@@ -322,7 +423,9 @@ export default function MapScreen() {
 
 
   const textColor = isDark ? theme.textLight : theme.textDark;
+  const subtextColor = isDark ? theme.subtextLight : theme.subtextDark;
   const bgColor = isDark ? theme.backgroundDark : theme.backgroundLight;
+  const borderColor = isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)';
 
   // -- Dynamic Near-Point Analytics --
   const nearestCooling = useMemo(() => 
@@ -367,6 +470,40 @@ export default function MapScreen() {
     Linking.openURL(url);
   };
 
+  // -- Route Specific Calculations --
+  const routeCalculations = useMemo(() => {
+    if (!selectedCenter?.routeInfo) return null;
+    
+    const distanceStr = selectedCenter.routeInfo.distance || '0m';
+    const durationStr = selectedCenter.routeInfo.duration || '0m';
+    
+    const distValue = parseFloat(distanceStr.replace(/[^\d.]/g, '')) || 0;
+    const isKm = distanceStr.toLowerCase().includes('km');
+    const distMeters = isKm ? distValue * 1000 : distValue;
+
+    const durValue = parseFloat(durationStr.replace(/[^\d.]/g, '')) || 0;
+    const mins = durationStr.toLowerCase().includes('min') ? durValue : (distMeters / 80);
+
+    // Dynamic metrics
+    const hydrationNeeded = Math.max(0.1, mins * 0.03).toFixed(1); 
+    const shadeCoverage = Math.max(40, 95 - (heatIndex * 0.4) - (distMeters / 1000)).toFixed(0);
+    
+    // Safety score logic
+    let baseSafety = 98;
+    if (risk === 'EXTREME') baseSafety -= 12;
+    else if (risk === 'DANGER') baseSafety -= 7;
+    else if (risk === 'CAUTION') baseSafety -= 3;
+    const dynamicSafety = Math.min(100, Math.round(baseSafety + (distMeters < 300 ? 2 : 0)));
+
+    return {
+      hydration: `${hydrationNeeded}L`,
+      shade: `${shadeCoverage}%`,
+      safety: `${dynamicSafety}%`,
+      thermalRelief: `-${(heatIndex * 0.06 + 0.5).toFixed(1)}°C`,
+      exposureRisk: mins > 12 ? 'Moderate' : 'Low'
+    };
+  }, [selectedCenter, risk, heatIndex]);
+
   const snapPoints = useMemo(() => ['20%', '45%', '90%'], []);
 
   if (weatherLoading && !location) {
@@ -384,14 +521,34 @@ export default function MapScreen() {
         <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
 
         {Platform.OS === 'web' ? (
-           <View style={StyleSheet.absoluteFillObject}>
-              <iframe
-                title="Map Layer"
-                key={`${initialRegion.latitude}-${initialRegion.longitude}`}
-                width="100%" height="100%" frameBorder="0"
-                src={`https://www.openstreetmap.org/export/embed.html?bbox=${initialRegion.longitude - 0.015}%2C${initialRegion.latitude - 0.015}%2C${initialRegion.longitude + 0.015}%2C${initialRegion.latitude + 0.015}&layer=mapnik&marker=${initialRegion.latitude}%2C${initialRegion.longitude}`}
-                style={{ border: 0, filter: isDark ? 'invert(90%) hue-rotate(180deg) brightness(95%) contrast(90%)' : 'none' }}
-              />
+           <View style={[StyleSheet.absoluteFillObject, { backgroundColor: isDark ? '#0f172a' : '#f8fafc' }]}>
+              {process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY ? (
+                <iframe
+                  title="Google Map Preview"
+                  width="100%"
+                  height="100%"
+                  style={{ border: 0 }}
+                  loading="lazy"
+                  allowFullScreen
+                  src={`https://www.google.com/maps/embed/v1/view?key=${process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY}&center=${initialRegion.latitude},${initialRegion.longitude}&zoom=14&maptype=roadmap${isDark ? '&style=element:geometry|color:0x212121&style=element:labels.icon|visibility:off&style=element:labels.text.fill|color:0x757575&style=element:labels.text.stroke|color:0x212121&style=feature:administrative|element:geometry|color:0x757575&style=feature:administrative.country|element:labels.text.fill|color:0x9e9e9e&style=feature:administrative.land_parcel|visibility:off&style=feature:administrative.locality|element:labels.text.fill|color:0xbdbdbd&style=feature:poi|element:geometry|color:0xeeeeee&style=feature:poi|element:labels.text.fill|color:0x757575&style=feature:poi.park|element:geometry|color:0x181818&style=feature:poi.park|element:labels.text.fill|color:0x616161&style=feature:road|element:geometry.fill|color:0x2c2c2c&style=feature:road|element:labels.text.fill|color:0x8a8a8a&style=feature:road.arterial|element:geometry|color:0x373737&style=feature:road.highway|element:geometry|color:0x3c3c3c&style=feature:road.highway.controlled_access|element:geometry|color:0x4e4e4e&style=feature:road.local|element:labels.text.fill|color:0x616161&style=feature:transit|element:labels.text.fill|color:0x757575&style=feature:water|element:geometry|color:0x000000&style=feature:water|element:labels.text.fill|color:0x3d3d3d' : ''}`}
+                />
+              ) : (
+                <iframe
+                  title="Map Fallback"
+                  width="100%"
+                  height="100%"
+                  style={{ border: 0, filter: isDark ? 'invert(90%) hue-rotate(180deg)' : 'none' }}
+                  src={`https://www.openstreetmap.org/export/embed.html?bbox=${initialRegion.longitude - 0.01}%2C${initialRegion.latitude - 0.01}%2C${initialRegion.longitude + 0.01}%2C${initialRegion.latitude + 0.01}&layer=mapnik&marker=${initialRegion.latitude}%2C${initialRegion.longitude}`}
+                />
+              )}
+              {/* Web Data Overlay Hint */}
+              <View style={{ position: 'absolute', bottom: 100, left: 20, right: 20, alignItems: 'center' }}>
+                <BlurView intensity={60} tint={isDark ? 'dark' : 'light'} style={{ padding: 12, borderRadius: 12, overflow: 'hidden', borderWidth: 1, borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }}>
+                  <Text style={{ fontSize: 12, fontWeight: '600', color: textColor, textAlign: 'center' }}>
+                    Web Preview Mode: Detailed markers and routing are best viewed in the Native App.
+                  </Text>
+                </BlurView>
+              </View>
            </View>
         ) : ( 
           <MapView
@@ -402,6 +559,7 @@ export default function MapScreen() {
               onMapReady={onMapReady}
               showsUserLocation={permissionStatus === 'granted' && mapReady}
               userInterfaceStyle={isDark ? 'dark' : 'light'}
+              customMapStyle={isDark ? darkMapStyle : []}
               showsCompass={false}
               showsMyLocationButton={false}
               toolbarEnabled={false}
@@ -532,12 +690,11 @@ export default function MapScreen() {
           <BlurView intensity={80} tint={isDark ? 'dark' : 'light'} style={[styles.searchBar, { backgroundColor: isDark ? 'rgba(15, 23, 42, 0.9)' : 'rgba(255, 255, 255, 0.9)', borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(46, 204, 112, 0.1)' }]}>
             <TouchableOpacity onPress={handleSearch} disabled={isLocating}><MaterialIcons name="search" size={24} color={theme.primary} /></TouchableOpacity>
             <TextInput 
-              placeholder="Search city/address..." placeholderTextColor={isDark ? '#94a3b8' : '#64748b'}
+              placeholder={isListening ? "Listening..." : "Search city/address..."} 
+              placeholderTextColor={isListening ? theme.primary : (isDark ? '#94a3b8' : '#64748b')}
               style={[styles.searchInput, { color: textColor }]}
               value={searchQuery} onChangeText={setSearchQuery} onSubmitEditing={handleSearch} returnKeyType="search"
             />
-            <View style={styles.divider} />
-            <TouchableOpacity onPress={() => Alert.alert("Voice", "Voice input disabled")}><MaterialIcons name="mic" size={24} color={theme.primary} /></TouchableOpacity>
           </BlurView>
 
           <View style={styles.filtersContainer}>
@@ -578,22 +735,7 @@ export default function MapScreen() {
            </BlurView>
 
 
-           <BlurView intensity={80} tint={isDark ? 'dark' : 'light'} style={[styles.fabBlur, { borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(46, 204, 112, 0.1)' }]}>
-              <TouchableOpacity style={styles.fabButton} onPress={() => {
-                if (mapRef.current && centersData.length > 0) {
-                  const coords = centersData.map(m => m.coordinate);
-                  if (location?.coords) coords.push(location.coords);
-                  mapRef.current.fitToCoordinates(coords, {
-                    edgePadding: { top: 100, right: 100, bottom: 100, left: 100 },
-                    animated: true,
-                  });
-                } else {
-                  Alert.alert("No Centers", "No safety hubs discovered yet.");
-                }
-              }} disabled={centersData.length === 0}>
-                  <MaterialIcons name="grid-view" size={24} color={theme.primary} />
-              </TouchableOpacity>
-           </BlurView>
+
 
            <BlurView intensity={80} tint={isDark ? 'dark' : 'light'} style={[styles.fabBlur, { borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(46, 204, 112, 0.1)' }]}>
               <TouchableOpacity style={styles.fabButton} onPress={handleLocateMe} disabled={isLocating}>
@@ -644,22 +786,36 @@ export default function MapScreen() {
                                  <Text style={[styles.statValue, { color: textColor }]}>{selectedCenter.routeInfo.distance}</Text>
                               </View>
                               <View style={[styles.statDivider, { backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)' }]} />
-                              <View style={styles.statBox}>
-                                 <Text style={styles.statLabel}>SAFETY</Text>
-                                 <View style={styles.protectionRow}>
-                                    <MaterialIcons name="verified" size={14} color={theme.primary} style={{ marginRight: 4 }} />
-                                    <Text style={[styles.statValue, { color: theme.primary }]}>98%</Text>
-                                 </View>
-                              </View>
-                           </View>
+                               <View style={styles.statBox}>
+                                  <Text style={styles.statLabel}>SAFETY</Text>
+                                  <View style={styles.protectionRow}>
+                                     <MaterialIcons name="verified" size={14} color={theme.primary} style={{ marginRight: 4 }} />
+                                     <Text style={[styles.statValue, { color: theme.primary }]}>{routeCalculations?.safety || '98%'}</Text>
+                                  </View>
+                               </View>
+                            </View>
 
-                           <View style={[styles.routeBenefits, { borderTopColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)' }]}>
-                              <MaterialIcons name="info-outline" size={14} color={isDark ? theme.subtextLight : theme.subtextDark} />
-                              <Text style={[styles.benefitText, { color: isDark ? theme.subtextLight : theme.subtextDark }]}>
-                                Route optimized for maximum shade protocols.
-                              </Text>
-                           </View>
-                        </View>
+                            {/* New Calculations Logic Row */}
+                            <View style={[styles.calcGrid, { borderTopColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)', borderTopWidth: 1, paddingTop: 12, marginTop: 12 }]}>
+                               <View style={styles.calcItem}>
+                                  <MaterialIcons name="water-drop" size={14} color="#3b82f6" />
+                                  <Text style={[styles.calcLabel, { color: subtextColor }]}>HYDRATION: </Text>
+                                  <Text style={[styles.calcValue, { color: textColor }]}>{routeCalculations?.hydration}</Text>
+                               </View>
+                               <View style={styles.calcItem}>
+                                  <MaterialIcons name="wb-cloudy" size={14} color="#64748b" />
+                                  <Text style={[styles.calcLabel, { color: subtextColor }]}>SHADE: </Text>
+                                  <Text style={[styles.calcValue, { color: textColor }]}>{routeCalculations?.shade}</Text>
+                               </View>
+                            </View>
+
+                            <View style={[styles.routeBenefits, { borderTopColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)' }]}>
+                               <MaterialIcons name="insights" size={14} color={theme.primary} />
+                               <Text style={[styles.benefitText, { color: isDark ? theme.subtextLight : theme.subtextDark }]}>
+                                 THERMAL IMPACT: Expect ~{routeCalculations?.thermalRelief} relief upon arrival.
+                               </Text>
+                            </View>
+                         </View>
 
                         <Text style={[styles.sectionHeader, { color: isDark ? theme.subtextLight : theme.subtextDark }]}>VOICE GUIDANCE PREVIEW</Text>
                         
@@ -1017,5 +1173,26 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 4,
     opacity: 0.8
-  }
+  },
+  calcGrid: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 12,
+  },
+  calcItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  calcLabel: {
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+  },
+  calcValue: {
+    fontSize: 12,
+    fontWeight: '800',
+  },
 });

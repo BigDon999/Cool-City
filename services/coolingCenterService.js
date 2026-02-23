@@ -76,15 +76,52 @@ export const CoolingCenterService = {
 
       if (!error2 && data2) return data2;
       
+      if (__DEV__) {
+        console.warn('[CoolingCenterService] Routing failure handled. Trying client-side fallback...');
+      }
+
+      // Tertiary Attempt: Direct Client-Side Fetch (using the key already available to the app)
+      const apiKey = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY || process.env.GOOGLE_MAPS_API_KEY;
+      if (apiKey) {
+        if (__DEV__) console.log('[CoolingCenterService] Attempting direct Google Directions fetch...');
+        
+        const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${origin.latitude},${origin.longitude}&destination=${destination.latitude},${destination.longitude}&mode=walking&key=${apiKey}`;
+        
+        try {
+          const response = await fetch(url);
+          if (response.ok) {
+            const data = await response.json();
+            if (data.status === 'OK') {
+              if (__DEV__) console.log('[CoolingCenterService] Client-side routing success!');
+              const route = data.routes[0];
+              const leg = route.legs[0];
+              return {
+                polyline: route.overview_polyline?.points || '',
+                duration: leg.duration?.text || '',
+                distance: leg.distance?.text || '',
+                steps: (leg.steps || []).map((s) => ({
+                  instruction: s.html_instructions.replace(/<[^>]*>?/gm, ''),
+                  distance: s.distance?.text || '',
+                  duration: s.duration?.text || ''
+                }))
+              };
+            } else {
+              if (__DEV__) console.warn(`[CoolingCenterService] Google Maps API Error Status: ${data.status}`, data.error_message);
+            }
+          } else {
+            if (__DEV__) console.warn(`[CoolingCenterService] Google Maps API HTTP Error: ${response.status}`);
+          }
+        } catch (fetchErr) {
+          if (__DEV__) console.error('[CoolingCenterService] Client-side fetch exception:', fetchErr.message);
+        }
+      } else {
+        if (__DEV__) console.warn('[CoolingCenterService] Client-side fallback skipped: No API Key found.');
+      }
+      
       throw new Error(error?.message || error2?.message || 'Routing Service Unavailable');
     } catch (err) {
       if (__DEV__) {
-        console.warn('[CoolingCenterService] Routing failure details:', {
-          message: err.message,
-          cause: err.cause,
-          stack: err.stack
-        });
-        console.warn('[CoolingCenterService] Using Direct Fallback line for Map.');
+        console.warn('[CoolingCenterService] Final Routing fallback activated:', err.message);
       }
       
       // CRITICAL FALLBACK: Generate a simple 2-point polyline (Direct Line)

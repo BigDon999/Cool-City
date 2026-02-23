@@ -1,4 +1,4 @@
-# Technical Architecture: Cool City
+# Technical Architecture: CoolCity
 
 ## 1️⃣ Project Structure
 
@@ -60,7 +60,17 @@ The app does **not** query Supabase from individual screens. Instead, all data f
 *   **Supabase Errors**: Explicitly caught in `fetchSupabaseData`. Errors are logged, and the app gracefully falls back to default/empty data arrays.
 *   **Null Data**: The code explicitly checks `if (!data || data.length === 0)` before attempting to access array indices (e.g., `data[0]`).
 
-## 5️⃣ Navigation Structure
+## 5️⃣ Offline Handling
+
+### Implementation
+*   **NetInfo**: Uses `@react-native-community/netinfo` to monitor network state in real-time.
+*   **OfflineNotice**: A global banner component integrated into the `RootLayout`. It slides in automatically when the device loses internet connectivity.
+*   **Persistence & Fallbacks**:
+    *   **Weather Cache**: `useWeather` caches the most recent results in `expo-secure-store`.
+    *   **Synthetic Discovery**: If the app is offline or the database is unreachable, `useWeather` generates synthetic safety hubs near the user's last known location to ensure critical safety information is always available.
+    *   **Sync Notification**: The offline banner displays the time of the last successful data synchronization.
+
+## 6️⃣ Navigation Structure
 
 ### Expo Router
 *   **Root Layout**: `app/_layout.jsx` initializes Providers (`Auth`, `Weather`) and Theme.
@@ -72,7 +82,7 @@ The app does **not** query Supabase from individual screens. Instead, all data f
     *   **Profile Tab**: Checks `!session`. If no session, it accepts the navigation but renders the `<AuthScreen />` component instead of the profile content.
 *   **Loading State**: Managed globally by `AuthContext`. The entire app tree waits for auth initialization before rendering.
 
-## 6️⃣ Environment Setup
+## 7️⃣ Environment Setup
 
 ### Configuration
 *   **Local Development**: Uses `.env` file to supply `EXPO_PUBLIC_` variables.
@@ -83,7 +93,7 @@ The app does **not** query Supabase from individual screens. Instead, all data f
 ### Native Safety
 *   **Dynamic Imports**: `app/_layout.jsx` dynamically imports `expo-notifications` and background services to prevent crashes in the **Expo Go** client, which might lack certain native permissions or background capabilities.
 
-## 7️⃣ Crash Risk Analysis
+## 8️⃣ Crash Risk Analysis
 
 ### ✅ Mitigated Risks
 *   **Undefined Env Vars**: **Fixed.** App now falls back to placeholders instead of crashing on Supabase client init.

@@ -34,6 +34,8 @@ export default function HomeScreenDisplay() {
   const [showLocationPrompt, setShowLocationPrompt] = useState(false);
   const [showNotificationPrompt, setShowNotificationPrompt] = useState(false);
   const [dismissedLocationCTA, setDismissedLocationCTA] = useState(false);
+  const [dismissedBanner, setDismissedBanner] = useState(false);
+  const [dismissedAutoRoute, setDismissedAutoRoute] = useState(false);
 
   // Whether we should show the inline location CTA card
   const needsLocation = permissionStatus !== 'granted' && !dismissedLocationCTA;
@@ -129,7 +131,7 @@ export default function HomeScreenDisplay() {
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
       
       {/* Header Heatwave/Heat Alert Banner */}
-      {showBanner && (
+      {showBanner && !dismissedBanner && (
           <View style={[styles.banner, { backgroundColor: bannerInfo.bg }]}>
               <View style={styles.bannerContent}>
                   <View style={styles.bannerIconWrap}>
@@ -137,39 +139,55 @@ export default function HomeScreenDisplay() {
                   </View>
                   <Text style={styles.bannerText}>{bannerInfo.label}</Text>
               </View>
-              <Text style={styles.bannerSubtext}>{bannerInfo.sub}</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                <Text style={styles.bannerSubtext}>{bannerInfo.sub}</Text>
+                <TouchableOpacity 
+                  onPress={() => setDismissedBanner(true)}
+                  style={styles.bannerClose}
+                >
+                  <MaterialIcons name="close" size={16} color="rgba(255,255,255,0.7)" />
+                </TouchableOpacity>
+              </View>
           </View>
       )}
 
       {/* ─── AUTO-ROUTE QUICK ACTION ────────────────────────── */}
-      {risk !== 'SAFE' && centersData && centersData.length > 0 && (
-        <TouchableOpacity
-          style={styles.autoRouteCard}
-          onPress={() => router.push({ pathname: '/map', params: { autoRoute: 'true' } })}
-        >
-          <LinearGradient
-            colors={['#3b82f6', '#2563eb']}
-            style={styles.autoRouteGradient}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
+      {risk !== 'SAFE' && centersData && centersData.length > 0 && !dismissedAutoRoute && (
+        <View style={styles.autoRouteContainer}>
+          <TouchableOpacity
+            style={styles.autoRouteCard}
+            onPress={() => router.push({ pathname: '/map', params: { autoRoute: 'true' } })}
           >
-            <View style={styles.autoRouteLeft}>
-              <View style={styles.autoRouteIcon}>
-                <MaterialCommunityIcons name="navigation-variant" size={24} color="#fff" />
+            <LinearGradient
+              colors={['#3b82f6', '#2563eb']}
+              style={styles.autoRouteGradient}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+            >
+              <View style={styles.autoRouteLeft}>
+                <View style={styles.autoRouteIcon}>
+                  <MaterialCommunityIcons name="navigation-variant" size={24} color="#fff" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.autoRouteTitle}>Nearest Cooling Center found!</Text>
+                  <Text style={styles.autoRouteName} numberOfLines={1}>
+                    {centersData[0].title} • {(centersData[0].distance / 1000).toFixed(1)} km
+                  </Text>
+                </View>
               </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.autoRouteTitle}>Nearest Cooling Center found!</Text>
-                <Text style={styles.autoRouteName} numberOfLines={1}>
-                  {centersData[0].title} • {(centersData[0].distance / 1000).toFixed(1)} km
-                </Text>
+              <View style={styles.autoRouteButton}>
+                <Text style={styles.autoRouteButtonText}>ROUTE NOW</Text>
+                <MaterialIcons name="chevron-right" size={18} color="#fff" />
               </View>
-            </View>
-            <View style={styles.autoRouteButton}>
-              <Text style={styles.autoRouteButtonText}>ROUTE NOW</Text>
-              <MaterialIcons name="chevron-right" size={18} color="#fff" />
-            </View>
-          </LinearGradient>
-        </TouchableOpacity>
+            </LinearGradient>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={styles.autoRouteClose}
+            onPress={() => setDismissedAutoRoute(true)}
+          >
+            <MaterialIcons name="close" size={14} color="#fff" />
+          </TouchableOpacity>
+        </View>
       )}
 
       <ScrollView 
@@ -512,12 +530,30 @@ const styles = StyleSheet.create({
       alignItems: 'center',
   },
   autoRouteCard: {
-    marginHorizontal: 12,
-    marginTop: 8,
     borderRadius: 16,
     overflow: 'hidden',
     boxShadow: '0 4px 15px rgba(59, 130, 246, 0.4)',
     elevation: 6,
+  },
+  autoRouteContainer: {
+    marginHorizontal: 12,
+    marginTop: 8,
+    position: 'relative',
+  },
+  autoRouteClose: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: 'rgba(0,0,0,0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 20,
+  },
+  bannerClose: {
+    padding: 2,
   },
   autoRouteGradient: {
     flexDirection: 'row',

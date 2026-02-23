@@ -208,6 +208,24 @@ export const AuthProvider = ({ children }) => {
     });
   }, [user, withSubmitGuard]);
 
+  // ─── UPDATE PASSWORD ──────────────────────────────────────────────
+  const updatePassword = useCallback(async (newPassword, confirmPassword) => {
+    return withSubmitGuard(async () => {
+      const strengthCheck = validatePasswordStrength(newPassword);
+      if (!strengthCheck.valid) return { error: strengthCheck.error };
+
+      const matchCheck = validatePasswordsMatch(newPassword, confirmPassword);
+      if (!matchCheck.valid) return { error: matchCheck.error };
+
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword
+      });
+
+      if (error) return { error: mapAuthError(error) };
+      return { error: null };
+    });
+  }, [withSubmitGuard]);
+
   // ─── DELETE ACCOUNT ───────────────────────────────────────────────
   const deleteAccount = useCallback(async () => {
     if (!user) return { error: 'You must be logged in to delete your account' };
@@ -274,6 +292,7 @@ export const AuthProvider = ({ children }) => {
     deleteAccount,
     resendVerification,
     refreshProfile,
+    updatePassword,
     uploadAvatar,
   };
 

@@ -54,3 +54,28 @@ export const Fonts = {
   rounded: Platform.OS === 'ios' ? 'System' : 'sans-serif',
   mono: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
 };
+
+export const darkMapStyle = [
+  { "elementType": "geometry", "stylers": [{ "color": "#121b14" }] },
+  { "elementType": "labels.text.fill", "stylers": [{ "color": "#8ec3b9" }] },
+  { "elementType": "labels.text.stroke", "stylers": [{ "color": "#121b14" }] },
+  { "featureBy": "administrative", "elementType": "geometry", "stylers": [{ "color": "#2c4033" }] },
+  { "featureType": "administrative.country", "elementType": "geometry.stroke", "stylers": [{ "color": "#3c5c48" }] },
+  { "featureType": "administrative.land_parcel", "stylers": [{ "visibility": "off" }] },
+  { "featureType": "administrative.province", "elementType": "geometry.stroke", "stylers": [{ "color": "#3c5c48" }] },
+  { "featureType": "landscape.man_made", "elementType": "geometry.stroke", "stylers": [{ "color": "#233328" }] },
+  { "featureType": "landscape.natural", "elementType": "geometry", "stylers": [{ "color": "#1a261d" }] },
+  { "featureType": "poi", "elementType": "geometry", "stylers": [{ "color": "#1a261d" }] },
+  { "featureType": "poi", "elementType": "labels.text.fill", "stylers": [{ "color": "#6f9b84" }] },
+  { "featureType": "poi.park", "elementType": "geometry", "stylers": [{ "color": "#16251c" }] },
+  { "featureType": "poi.park", "elementType": "labels.text.fill", "stylers": [{ "color": "#6b9a76" }] },
+  { "featureType": "road", "elementType": "geometry", "stylers": [{ "color": "#233328" }] },
+  { "featureType": "road", "elementType": "labels.text.fill", "stylers": [{ "color": "#8a9a8d" }] },
+  { "featureType": "road.highway", "elementType": "geometry", "stylers": [{ "color": "#2c4033" }] },
+  { "featureType": "road.highway", "elementType": "geometry.stroke", "stylers": [{ "color": "#1e2e25" }] },
+  { "featureType": "road.highway", "elementType": "labels.text.fill", "stylers": [{ "color": "#c1cfc5" }] },
+  { "featureType": "transit", "elementType": "geometry", "stylers": [{ "color": "#233328" }] },
+  { "featureType": "transit.station", "elementType": "labels.text.fill", "stylers": [{ "color": "#6f9b84" }] },
+  { "featureType": "water", "elementType": "geometry", "stylers": [{ "color": "#0d130f" }] },
+  { "featureType": "water", "elementType": "labels.text.fill", "stylers": [{ "color": "#3c5c48" }] }
+];

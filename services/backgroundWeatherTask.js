@@ -1,7 +1,22 @@
 import * as TaskManager from 'expo-task-manager';
-import * as BackgroundFetch from 'expo-background-fetch';
+import Constants, { ExecutionEnvironment } from 'expo-constants';
 import * as Location from 'expo-location';
-import * as Notifications from 'expo-notifications';
+
+const isExpoGo = Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
+
+// Safe imports for native-only modules
+let Notifications = null;
+let BackgroundFetch = null;
+
+if (!isExpoGo) {
+  try {
+    Notifications = require('expo-notifications');
+    BackgroundFetch = require('expo-background-fetch');
+  } catch (e) {
+    console.log('[BackgroundWeatherTask] Native modules not available');
+  }
+}
+
 import { fetchWeather, calculateHeatRisk } from './openWeatherService';
 
 const BACKGROUND_WEATHER_TASK = 'background-weather-check';
@@ -20,7 +35,7 @@ TaskManager.defineTask(BACKGROUND_WEATHER_TASK, async () => {
       accuracy: Location.Accuracy.Balanced,
     });
 
-    if (!position) return BackgroundFetch.BackgroundFetchResult.NoData;
+    if (!position || !BackgroundFetch) return BackgroundFetch?.BackgroundFetchResult?.NoData || 0;
 
     const { latitude, longitude } = position.coords;
 
@@ -28,7 +43,7 @@ TaskManager.defineTask(BACKGROUND_WEATHER_TASK, async () => {
     const weather = await fetchWeather(latitude, longitude);
     if (!weather || weather.error) {
        if (__DEV__) console.log('[BackgroundFetch] Weather sync failed, skipping cycle.');
-       return BackgroundFetch.BackgroundFetchResult.Failed;
+       return BackgroundFetch?.BackgroundFetchResult?.Failed || 0;
     }
 
     // 3. Calculate Risk & Advice
@@ -46,27 +61,34 @@ TaskManager.defineTask(BACKGROUND_WEATHER_TASK, async () => {
       body += 'EXTREME HEAT. Stay indoors and check on your neighbors.';
     }
 
-    // 5. Send Notification
-    await Notifications.scheduleNotificationAsync({
-      content: {
-        title,
-        body,
-        data: { risk, heatIndex },
-        sound: true,
-        priority: 'high',
-      },
-      trigger: null, // send immediately
-    });
+    // 5. Send Notification (Safe guard)
+    if (Notifications) {
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title,
+          body,
+          data: { risk, heatIndex },
+          sound: true,
+          priority: 'high',
+        },
+        trigger: null, // send immediately
+      });
+    }
 
-    return BackgroundFetch.BackgroundFetchResult.NewData;
+    return BackgroundFetch?.BackgroundFetchResult?.NewData || 0;
   } catch (error) {
     if (__DEV__) console.error('[BackgroundFetch] Task failed:', error);
-    return BackgroundFetch.BackgroundFetchResult.Failed;
+    return BackgroundFetch?.BackgroundFetchResult?.Failed || 0;
   }
 });
 
 // 2. Export Registration Helper
 export const registerBackgroundWeatherTask = async () => {
+  if (isExpoGo || !BackgroundFetch || !Notifications) {
+    if (__DEV__) console.log('[BackgroundFetch] Skipping registration in Expo Go or missing modules');
+    return;
+  }
+
   try {
     // Check permissions
     const { status: locStatus } = await Location.requestBackgroundPermissionsAsync();
@@ -84,7 +106,7 @@ export const registerBackgroundWeatherTask = async () => {
       // Register Background Fetch
       // set to 5 minutes (300 seconds)
       await BackgroundFetch.registerTaskAsync(BACKGROUND_WEATHER_TASK, {
-        minimumInterval: 5 * 60, 
+        minimumInterval: 300, 
         stopOnTerminate: false,
         startOnBoot: true,
       });
@@ -97,6 +119,8 @@ export const registerBackgroundWeatherTask = async () => {
 };
 
 export const unregisterBackgroundWeatherTask = async () => {
+  if (isExpoGo || !BackgroundFetch) return;
+  
   if (await TaskManager.isTaskRegisteredAsync(BACKGROUND_WEATHER_TASK)) {
     await BackgroundFetch.unregisterTaskAsync(BACKGROUND_WEATHER_TASK);
   }

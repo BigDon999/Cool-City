@@ -1,10 +1,10 @@
 export default {
   expo: {
-    name: "coolcity",
+    name: "CoolCity",
     slug: "coolcity",
     version: "1.0.0",
     orientation: "portrait",
-    icon: "./assets/images/icon.png",
+    icon: "./assets/images/coolcityicon2.png",
     scheme: "heatguard",
     userInterfaceStyle: "automatic",
     newArchEnabled: true,
@@ -12,7 +12,9 @@ export default {
       supportsTablet: true,
       bundleIdentifier: "com.coolcity.app",
       infoPlist: {
-        UIBackgroundModes: ["location", "fetch"]
+        UIBackgroundModes: ["location", "fetch"],
+        NSSpeechRecognitionUsageDescription: "CoolCity needs speech recognition to help you search for safety centers by voice.",
+        NSMicrophoneUsageDescription: "CoolCity needs microphone access to listen for your search queries."
       },
       config: {
         googleMapsApiKey: process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY || process.env.GOOGLE_MAPS_API_KEY
@@ -21,12 +23,15 @@ export default {
     android: {
       package: "com.coolcity.app",
       permissions: [
+        "INTERNET",
+        "ACCESS_NETWORK_STATE",
         "ACCESS_COARSE_LOCATION",
         "ACCESS_FINE_LOCATION",
         "ACCESS_BACKGROUND_LOCATION",
         "POST_NOTIFICATIONS",
         "android.permission.RECEIVE_BOOT_COMPLETED",
-        "android.permission.WAKE_LOCK"
+        "android.permission.WAKE_LOCK",
+        "RECORD_AUDIO"
       ],
       config: {
         googleMaps: {
@@ -35,7 +40,7 @@ export default {
       },
       adaptiveIcon: {
         backgroundColor: "#E6F4FE",
-        foregroundImage: "./assets/images/android-icon-foreground.png",
+        foregroundImage: "./assets/images/coolcityicon_padded.png",
         backgroundImage: "./assets/images/android-icon-background.png",
         monochromeImage: "./assets/images/android-icon-monochrome.png"
       },
@@ -44,14 +49,14 @@ export default {
     },
     web: {
       output: "static",
-      favicon: "./assets/images/favicon.png"
+      favicon: "./assets/images/coolcityicon2.png"
     },
     plugins: [
       "expo-router",
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/splash-icon.png",
+          "image": "./assets/images/coolcityicon2.png",
           "imageWidth": 200,
           "resizeMode": "contain",
           "backgroundColor": "#ffffff",
@@ -64,12 +69,13 @@ export default {
       [
         "expo-location",
         {
-          "locationAlwaysAndWhenInUsePermission": "Allow Cool City to access your location to provide heat risk alerts."
+          "locationAlwaysAndWhenInUsePermission": "Allow CoolCity to access your location to provide heat risk alerts."
         }
       ],
       "expo-background-fetch",
       "expo-task-manager",
-      "expo-notifications"
+      "expo-notifications",
+      "expo-speech-recognition"
     ],
     experiments: {
       "typedRoutes": false,
