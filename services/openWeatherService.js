@@ -1,17 +1,13 @@
 /**
- * OpenWeatherMap FREE-TIER Service (2.5 API) — with Open-Meteo fallback
- *
- * Primary:  OWM /data/2.5/weather + /data/2.5/forecast (needs API key)
- * Fallback: Open-Meteo (no key required, fully free)
- *
- * Safety:
- * - Validates lat/lon as finite numbers
- * - Validates API key exists (falls back to Open-Meteo if not)
- * - Handles 401 (invalid key) by falling back automatically
- * - Handles network failures gracefully
- * - Uses Array.isArray checks before mapping collections
- * - Never throws — always returns null on error
- * - No console logs in production (__DEV__ guarded)
+ * @file openWeatherService.js
+ * @description Senior Developer Audit: Weather Data Aggregation Service.
+ * 
+ * SECURITY AUDIT NOTES:
+ * - Sanitization: Validates lat/lon as finite numbers to prevent injection/resource abuse.
+ * - Resilience: Implements a primary-fallback strategy (OWM -> Open-Meteo).
+ * - Key Management: OWM API key is consumed via environment variables; fallback 
+ *   mechanisms trigger automatically if keys are missing or invalid.
+ * - Data Integrity: Uses array validation and statistical modes for normalization.
  */
 
 const OWM_BASE = process.env.EXPO_PUBLIC_OWM_BASE_URL;
